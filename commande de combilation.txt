@@ -1,0 +1,22 @@
+g++ -o ClientConsultationBookerQt \
+    main.cpp \
+    mainwindowclientconsultationbooker.cpp \
+    moc_mainwindowclientconsultationbooker.cpp \
+    -I/usr/include/qt5 \
+    -I/usr/include/qt5/QtWidgets \
+    -I/usr/include/qt5/QtCore \
+    -I/usr/include/qt5/QtGui \
+    -lQt5Widgets \
+    -lQt5Core \
+    -lQt5Gui \
+    -fPIC
+
+
+
+
+
+
+
+
+
+./ClientConsultationBookerQt

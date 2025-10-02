@@ -37,9 +37,9 @@ MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(QWidget *
         ui->tableWidgetConsultations->setColumnWidth(col, columnWidths[col]);
 
     // Exemples d'utilisation (à supprimer)
-    this->addTupleTableConsultations(1,"Neurologie","Martin Claire","2025-10-01", "09:00");
-    this->addTupleTableConsultations(2,"Cardiologie","Lemoine Bernard","2025-10-06", "10:15");
-    this->addTupleTableConsultations(3,"Dermatologie","Maboul Paul","2025-10-23", "14:30");
+    //this->addTupleTableConsultations(1,"Neurologie","Martin Claire","2025-10-01", "09:00");
+    //this->addTupleTableConsultations(2,"Cardiologie","Lemoine Bernard","2025-10-06", "10:15");
+    //this->addTupleTableConsultations(3,"Dermatologie","Maboul Paul","2025-10-23", "14:30");
 
     //this->addComboBoxSpecialties("--- TOUTES ---");
     this->addComboBoxSpecialties("Dermatologie");
@@ -301,15 +301,71 @@ void MainWindowClientConsultationBooker::on_pushButtonLogout_clicked()
 
 void MainWindowClientConsultationBooker::on_pushButtonRechercher_clicked()
 {
-    string specialty = this->getSelectionSpecialty();
-    string doctor = this->getSelectionDoctor();
-    string startDate = this->getStartDate();
-    string endDate = this->getEndDate();
+    this->clearTableConsultations();
+    RECHERCHE recherche;
+    // Copie sécurisée de la spécialité
+    strncpy(recherche.nomSpecialite, this->getSelectionSpecialty().c_str(), sizeof(recherche.nomSpecialite)-1);
+    recherche.nomSpecialite[sizeof(recherche.nomSpecialite)-1] = '\0';
 
-    cout << "specialty = " << specialty << endl;
-    cout << "doctor = " << doctor << endl;
-    cout << "startDate = " << startDate << endl;
-    cout << "endDate = " << endDate << endl;
+    // Copie sécurisée du nom du docteur
+    string doctor = this->getSelectionDoctor();
+    strncpy(recherche.nom, doctor.c_str(), sizeof(recherche.nom)-1);
+    recherche.nom[sizeof(recherche.nom)-1] = '\0';
+
+    // Copie sécurisée de la date de début
+    string startDate = this->getStartDate();
+    strncpy(recherche.dateDebut, startDate.c_str(), sizeof(recherche.dateDebut)-1);
+    recherche.dateDebut[sizeof(recherche.dateDebut)-1] = '\0';
+
+    // Copie sécurisée de la date de fin
+    string endDate = this->getEndDate();
+    strncpy(recherche.dateFin, endDate.c_str(), sizeof(recherche.dateFin)-1);
+    recherche.dateFin[sizeof(recherche.dateFin)-1] = '\0';
+
+    TYPE type;
+    type.typeMessage = 2;  // RECHERCHE_CONSULTATION
+    type.taille = sizeof(RECHERCHE);
+
+    envoyerMessage(client, &type, sizeof(TYPE));
+
+    // 2. Envoyer directement la structure RECHERCHE (SANS envoyer sa taille avant !)
+    envoyerMessage(client, &recherche, sizeof(RECHERCHE));
+
+    // 3. Recevoir le nombre de résultats
+    int nbResultats;
+    recevoirReponse(client, &nbResultats, sizeof(nbResultats));
+
+    printf("Nombre de résultats reçus: %d\n", nbResultats);
+
+    // Le reste de votre code reste identique...
+    if(nbResultats > 0) {
+        std::vector<REPONSE_RECHERCHE> tabReponses(nbResultats);
+        recevoirReponse(client, tabReponses.data(), nbResultats * sizeof(REPONSE_RECHERCHE));
+        char nomComplet[50];
+        for(int i = 0; i < nbResultats; i++)
+        {
+            printf("Consultation %d: Dr %s %s - %s à %s\n", 
+            tabReponses[i].idConsultation, 
+            tabReponses[i].prenomMedecin, 
+            tabReponses[i].nomMedecin,
+            tabReponses[i].dateConsultation, 
+            tabReponses[i].hourConsultation);
+            sprintf(nomComplet, "%s %s", tabReponses[i].nomMedecin, tabReponses[i].prenomMedecin);
+            this->addTupleTableConsultations(tabReponses[i].idConsultation, 
+                            tabReponses[i].nomSpecialite,
+                            nomComplet,
+                            tabReponses[i].dateConsultation, 
+                            tabReponses[i].hourConsultation);
+                cout << "specialty = " << tabReponses[i].nomSpecialite << endl;
+                cout << "doctor = " << nomComplet << endl;
+                cout << "date = " << tabReponses[i].dateConsultation << endl;
+                cout << "hour = " << tabReponses[i].hourConsultation << endl;
+                cout << endl;
+                cout << endl;
+                cout << endl;
+                cout << endl;
+        }
+    }
 }
 
 void MainWindowClientConsultationBooker::on_pushButtonReserver_clicked()

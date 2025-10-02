@@ -57,10 +57,32 @@ int envoyerReponse(int socketClient, const char* message){
 
 // ------------------- Données binaires -------------------
 
-int recevoirMessageBinaire(int socketClient, void* buffer, size_t taille){
-    int nbBytes = recv(socketClient, buffer, taille, 0);
-    if (nbBytes < 0) { perror("Erreur reception binaire"); return -1; }
-    return nbBytes;
+int recevoirMessageBinaire(int socketClient, void* buffer, size_t taille)
+{
+    int totalRecu = 0;
+    int nbBytes;
+    char *ptr = (char*)buffer;
+    
+    while(totalRecu < taille)
+    {
+        nbBytes = recv(socketClient, ptr + totalRecu, taille - totalRecu, 0);
+        
+        if (nbBytes < 0) 
+        { 
+            perror("Erreur reception binaire"); 
+            return -1; 
+        }
+        
+        if (nbBytes == 0)  // Connexion fermée
+        {
+            fprintf(stderr, "Connexion fermée par le client\n");
+            return 0;
+        }
+        
+        totalRecu += nbBytes;
+    }
+    
+    return totalRecu;
 }
 
 int envoyerMessageBinaire(int socketClient, const void* buffer, size_t taille){

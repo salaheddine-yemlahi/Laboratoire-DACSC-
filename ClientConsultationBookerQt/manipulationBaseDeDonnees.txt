@@ -58,9 +58,37 @@ int mysql_query(MYSQL *mysql, const char *stmt_str);
 
 
 
+SELECT id 
+FROM doctors 
+WHERE CONCAT(last_name, ' ', first_name) LIKE 'Dupont Alice';
 
 
 
+
+SELECT 
+  c.id, 
+  d.first_name, 
+  d.last_name, 
+  c.date, 
+  c.hour
+FROM consultations c
+INNER JOIN doctors d ON c.doctor_id = d.id
+WHERE d.last_name = 'Dupont' 
+  AND d.first_name = 'Alice';
+
+
+
+SELECT 
+    ->   c.id, 
+    ->   d.first_name, 
+    ->   d.last_name, 
+    ->   c.date, 
+    ->   c.hour
+    -> FROM consultations c
+    -> INNER JOIN doctors d ON c.doctor_id = d.id
+    -> WHERE d.last_name = 'Dupont' 
+    ->   AND d.first_name = 'Alice'
+    -> and c.date between '2025-10-01'  and '2025-10-10' ;
 
 
 

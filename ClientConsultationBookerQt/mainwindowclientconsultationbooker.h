@@ -13,14 +13,31 @@ typedef struct
     bool nouveauPatient; 
 } PATIENT;
 
+typedef struct 
+{
+    char nom[50];
+    char nomSpecialite[40];
+    char dateDebut[10];
+    char dateFin[10];
+} RECHERCHE;
+
 typedef struct {
     int typeMessage;
     int taille;
 } TYPE;
 /*
-* 1 : PATIENT
-*
+* 1 : IDENTIFIER
+* 2 : RECHERCHER
 */
+typedef struct{
+    int idConsultation;
+    char nomSpecialite[40];
+    char nomMedecin[20];
+    char prenomMedecin[20];
+    char dateConsultation[10];
+    char hourConsultation[5];
+} REPONSE_RECHERCHE;
+
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindowClientConsultationBooker; }

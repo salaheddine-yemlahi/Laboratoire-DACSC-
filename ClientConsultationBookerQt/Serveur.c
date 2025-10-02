@@ -22,6 +22,28 @@ typedef struct {
     int taille;
 } TYPE;
 
+/*
+* 1 : IDENTIFIER
+* 2 : RECHERCHER
+*/
+
+typedef struct 
+{
+    char nom[50];
+    char nomSpecialite[40];
+    char dateDebut[10];
+    char dateFin[10];
+} RECHERCHE;
+
+typedef struct{
+    int idConsultation;
+    char nomSpecialite[40];
+    char nomMedecin[20];
+    char prenomMedecin[20];
+    char dateConsultation[10];
+    char hourConsultation[5];
+} REPONSE_RECHERCHE;
+
 // Variables globales
 pthread_mutex_t mutexSocketsAcceptees;
 pthread_cond_t condSocketsAcceptees;
@@ -31,6 +53,7 @@ int serveur;
 
 int PORT_RESERVATION = 1234; // Exemple
 int NB_THREADS_POOL = 5;     // Exemple
+MYSQL* connexion;
 
 // Prototypes
 void HandlerSIGINT(int s);
@@ -45,7 +68,7 @@ int main(){
     for(int i=0;i<TAILLE_FILE_ATTENTE;i++) socketsAcceptees[i]=-1;
 
     // Connexion MySQL (exemple)
-    MYSQL* connexion = mysql_init(NULL);
+    connexion = mysql_init(NULL);
     if (!mysql_real_connect(connexion,"localhost","Student","PassStudent1_","PourStudent",0,NULL,0)){
         fprintf(stderr,"Erreur BD: %s\n", mysql_error(connexion));
         exit(1);
@@ -118,6 +141,7 @@ void TraitementConnexion(int sService){
     bool onContinue=true;
     while(onContinue){
         TYPE type;
+        char requete[256];
         int lus = recevoirMessageBinaire(sService,&type,sizeof(TYPE));
         if(lus<=0) { close(sService); return; }
         printf("message reçu %d\n", type.type);
@@ -129,6 +153,54 @@ void TraitementConnexion(int sService){
             printf("message reçu %s ,%s\n", patient.nom, patient.prenom);
             bool reponseBool = CBP_Login(patient.nom, patient.prenom);
             envoyerMessageBinaire(sService,&reponseBool,sizeof(bool));
+             continue;
+        }
+        else if(type.type==2){
+        RECHERCHE recherche;
+        lus = recevoirMessageBinaire(sService,&recherche,sizeof(RECHERCHE));
+        if(lus<=0) { close(sService); return; }
+        printf("DEBUG - Octets reçus pour RECHERCHE: %d/%lu\n", lus, sizeof(RECHERCHE));
+printf("DEBUG - Contenu reçu:\n");
+printf("  nom: '%s'\n", recherche.nom);
+printf("  specialite: '%s'\n", recherche.nomSpecialite);
+printf("  dateDebut: '%s'\n", recherche.dateDebut);
+printf("  dateFin: '%s'\n", recherche.dateFin);
+        printf("message reçu %s ,%s, %s, %s\n", recherche.nom, recherche.nomSpecialite, recherche.dateDebut, recherche.dateFin);
+            snprintf(requete, sizeof(requete),
+         "SELECT c.id, d.first_name, d.last_name, c.date, c.hour "
+         "FROM consultations c "
+         "INNER JOIN doctors d ON c.doctor_id = d.id "
+         "WHERE CONCAT(d.last_name, ' ', d.first_name) LIKE '%%%s%%' "
+         "AND c.date BETWEEN '%s' AND '%s';",
+         recherche.nom, recherche.dateDebut, recherche.dateFin);
+            if (mysql_query(connexion,requete) != 0)
+            {
+                fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+                exit(1);
+            }
+            printf("Requete SELECT réussie.\n");
+            REPONSE_RECHERCHE    reponse;
+             MYSQL_RES *ResultSet;
+            if ((ResultSet = mysql_store_result(connexion)) == NULL)
+            {
+                fprintf(stderr, "Erreur de mysql_store_result: %s\n",mysql_error(connexion));
+                exit(1);
+            }
+            MYSQL_ROW ligne;
+            int nbResultats = mysql_num_rows(ResultSet);
+            envoyerMessageBinaire(sService,&nbResultats,sizeof(int));
+
+            int nbChamps = mysql_num_fields(ResultSet);
+            while ((ligne = mysql_fetch_row(ResultSet)) != NULL)
+            {
+                reponse.idConsultation = atoi(ligne[0]);
+                strcpy(reponse.prenomMedecin, ligne[1]);
+                strcpy(reponse.nomMedecin, ligne[2]);
+                strcpy(reponse.dateConsultation, ligne[3]);
+                strcpy(reponse.hourConsultation, ligne[4]);
+                envoyerMessageBinaire(sService,&reponse,sizeof(REPONSE_RECHERCHE));
+            }
+            continue;
         }
         else{
             char* buffer = malloc(type.taille);

@@ -1,0 +1,163 @@
+Nomd’utilisateur : Student
+Motdepasse utilisateur : PassStudent1
+Base dedonnées : PourStudent
+
+
+ # mysql-u Student-p
+ Enter password:
+
+
+ # mysql> show databases;
+
+
+ #  mysql> use PourStudent;
+
+ # mysql> show tables;
+ +-----------------------+
+| Tables_in_PourStudent |
++-----------------------+
+| consultations         |
+| doctors               |
+| patients              |
+| specialties           |
++-----------------------+
+4 rows in set (0.00 sec)
+
+# mysql> describe Personnes;
+
+# mysql> select * from Personnes;
+
+
+#include <mysql.h>
+MYSQL* mysql_init(MYSQL *mysql);
+
+
+#include <mysql.h>
+MYSQL* mysql_real_connect(MYSQL *mysql,
+ const char *host,
+ const char *user,
+ const char *passwd,
+ const char *db,
+ unsigned int port,
+ const char *unix_socket,
+ unsigned long client_flag);
+
+void mysql_close(MYSQL *mysql);
+int mysql_query(MYSQL *mysql, const char *stmt_str);
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Bien sûr, l’appel à cette fonction peut échouer et dans ce cas, le retour de la fonction est
+ NULL.Il est alors possible de connaître les raisons de cet échec à l’aide de la fonction
+ #include <mysql.h>
+ const char* mysql_error(MYSQL *mysql);
+
+
+
+
+
+
+
+
+
+
+ #include <stdio.h>
+ #include <stdlib.h>
+ #include <mysql.h>
+ int main(int argc,char* argv[])
+ {
+ if (argc != 4)
+ {
+ printf("Trop peu ou trop de paramètres !\n");
+ printf("Usage: TestConnection login password NomBD\n");
+ exit(1);
+ }
+ MYSQL* connexion;
+ connexion = mysql_init(NULL);
+ // Connexion à la base de données
+ if (mysql_real_connect(connexion,"localhost",argv[1],argv[2],argv[3],0,NULL,0) == NULL)
+ {
+ fprintf(stderr, "Erreur de connexion à la BD: %s\n",mysql_error(connexion));
+ exit(1);
+ }
+ printf("Connexion établie avec succès à la BD.\n");
+ // Déconnexion de la base de données
+ mysql_close(connexion);
+ exit(0);
+ }
+
+
+
+
+
+
+
+
+
+
+  #include <stdio.h>
+ #include <stdlib.h>
+ #include <mysql.h>
+ int main(int argc,char* argv[])
+ {
+ if (argc != 4)
+ {
+ printf("Trop peu ou trop de paramètres !\n");
+ printf("Usage: TestInsert nom prenom anneeNaissance\n");
+ exit(1);
+ }
+ MYSQL* connexion;
+ connexion = mysql_init(NULL);
+ // Connexion à la base de données
+ if (mysql_real_connect(connexion,
+ "localhost",
+ "Student",
+ "PassStudent1_",
+ "PourStudent",
+ 0,NULL,0) == NULL)
+ {
+ fprintf(stderr, "Erreur de connexion à la BD: %s\n",mysql_error(connexion));
+ exit(1);
+ }
+ printf("Connexion établie avec succès à la BD.\n");
+ // Construction et exécution de la requête
+ char requete[256];
+ sprintf(requete,
+ "insert into Personnes values(NULL,’%s’,’%s’,%d);",
+ argv[1],
+ argv[2],
+ atoi(argv[3]));
+ if (mysql_query(connexion,requete) != 0)
+ {
+ fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
+ exit(1);
+ }
+ printf("Insertion OK.\n");
+ // Déconnexion de la base de données
+ mysql_close(connexion);
+ exit(0);
+ }

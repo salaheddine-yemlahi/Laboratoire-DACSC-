@@ -5,6 +5,23 @@
 #include <string>
 using namespace std;
 
+typedef struct 
+{ 
+    char nom[20];
+    char prenom[20];
+    int numeroPatient;
+    bool nouveauPatient; 
+} PATIENT;
+
+typedef struct {
+    int typeMessage;
+    int taille;
+} TYPE;
+/*
+* 1 : PATIENT
+*
+*/
+
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindowClientConsultationBooker; }
 QT_END_NAMESPACE
@@ -14,6 +31,7 @@ class MainWindowClientConsultationBooker : public QMainWindow
     Q_OBJECT
 
 public:
+    int client;
     MainWindowClientConsultationBooker(QWidget *parent = nullptr);
     ~MainWindowClientConsultationBooker();
 
@@ -26,6 +44,7 @@ public:
     void clearComboBoxSpecialties();
 
     void addComboBoxDoctors(string doctor);
+
     string getSelectionDoctor() const;
     void clearComboBoxDoctors();
 

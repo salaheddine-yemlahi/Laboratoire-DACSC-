@@ -3,12 +3,19 @@
 #include <QInputDialog>
 #include <QMessageBox>
 #include <iostream>
+#include "LibrairieClient.h"
 using namespace std;
 
 MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindowClientConsultationBooker)
 {
+    client = connecterServeur("127.0.0.1", 1234);  // ← "127.0.0.1" au lieu de "localhost"
+    if (client < 0) {
+        printf("Erreur: impossible de connecter avec le serveur\n");
+        return;
+    }
+    printf("Connexion réussie!\n");
     ui->setupUi(this);
     logoutOk();
 
@@ -45,6 +52,8 @@ MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(QWidget *
 
 MainWindowClientConsultationBooker::~MainWindowClientConsultationBooker()
 {
+    // Fermer la connexion
+    fermerSocket(client);
     delete ui;
 }
 
@@ -248,17 +257,41 @@ int MainWindowClientConsultationBooker::dialogInputInt(const string& title,const
 /////////////////////////////////////////////////////////////////////////////////////////////////////////////
 void MainWindowClientConsultationBooker::on_pushButtonLogin_clicked()
 {
-    string lastName = this->getLastName();
-    string firstName = this->getFirstName();
-    int patientId = this->getPatientId();
-    bool newPatient = this->isNewPatientSelected();
-        // c'est ici que je dois faire la requète pour m'idetifier.
-    cout << "lastName = " << lastName << endl;
-    cout << "FirstName = " << firstName << endl;
-    cout << "patientId = " << patientId << endl;
-    cout << "newPatient = " << newPatient << endl;
+    PATIENT patient;
+    TYPE type;
 
-    loginOk();
+    // Copier les chaînes C++ dans les tableaux C
+    strncpy(patient.nom, this->getLastName().c_str(), sizeof(patient.nom)-1);
+    patient.nom[sizeof(patient.nom)-1] = '\0';
+
+    strncpy(patient.prenom, this->getFirstName().c_str(), sizeof(patient.prenom)-1);
+    patient.prenom[sizeof(patient.prenom)-1] = '\0';
+
+    patient.numeroPatient = this->getPatientId();
+    patient.nouveauPatient = this->isNewPatientSelected();
+
+    // Préparer le type de message
+    type.typeMessage = 1;
+    type.taille = sizeof(PATIENT);
+
+    // Envoyer le message
+    envoyerMessage(client, &type, sizeof(TYPE));
+    envoyerMessage(client, &patient, sizeof(PATIENT));
+
+    // Recevoir la réponse
+    bool buffer;
+    recevoirReponse(client, &buffer, sizeof(buffer));
+    if(buffer){
+        loginOk();
+    }
+
+    // Debug
+    cout << "lastName = " << patient.nom << endl;
+    cout << "FirstName = " << patient.prenom  << endl;
+    cout << "patientId = " << patient.numeroPatient << endl;
+    cout << "newPatient = " << patient.nouveauPatient << endl;
+
+    
 }
 
 void MainWindowClientConsultationBooker::on_pushButtonLogout_clicked()

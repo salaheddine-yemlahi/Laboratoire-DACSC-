@@ -93,8 +93,8 @@ int main(int argc,char* argv[])
     if ((nbEcrits = envoyerReponse(sService,(char*)&p)) < 0) 
     { 
         perror("Erreur de Send"); 
-        close(sService); 
-        close(sServer); 
+        close(sService);
+        close(sServer);
         exit(1); 
     } 
     

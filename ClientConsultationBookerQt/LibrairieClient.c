@@ -3,7 +3,7 @@
 #include <string.h>
 #include <stdlib.h>
 
-int connecterServeur(const char* ip, int port) {
+int connecterServeur(const char* ip, int port) { //
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if (sock < 0) {
         perror("Erreur création socket client");
@@ -25,30 +25,32 @@ int connecterServeur(const char* ip, int port) {
     return sock;
 }
 
-int envoyerMessage(int socketServeur, const char* message) {
-    int nbBytes = send(socketServeur, message, strlen(message), 0);
+int envoyerMessage(int socketServeur, const void* data, size_t taille) {
+    int nbBytes = send(socketServeur, data, taille, 0);
     if (nbBytes < 0) {
         perror("Erreur envoi message");
         return -1;
     }
-    
-    printf("Envoyé: %s\n", message);
+    printf("Envoyé %d octets\n", nbBytes);
     return nbBytes;
 }
 
-int recevoirReponse(int socketServeur, char* buffer) {
-    int nbBytes = recv(socketServeur, buffer, TAILLE_MAX_DATA - 1, 0);
+
+int recevoirMessage(int socketServeur, void* buffer, size_t taille) {
+    int nbBytes = recv(socketServeur, buffer, taille, 0);
     if (nbBytes < 0) {
-        perror("Erreur réception réponse");
+        perror("Erreur reception message");
         return -1;
     }
-    
-    buffer[nbBytes] = '\0';
-    printf("Reçu: %s\n", buffer);
     return nbBytes;
+}
+
+int recevoirReponse(int socketServeur, void* buffer, size_t taille) {
+    return recevoirMessage(socketServeur, buffer, taille);
 }
 
 void fermerSocket(int socket) {
     close(socket);
     printf("Connexion fermée\n");
 }
+

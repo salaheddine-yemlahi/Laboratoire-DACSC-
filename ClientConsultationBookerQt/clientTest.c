@@ -25,6 +25,8 @@ int main(int argc, char* argv[]) {
     char buffer[TAILLE_MAX_DATA];
     recevoirReponse(client, buffer);
     
+    
+
     // Fermer la connexion
     fermerSocket(client);
     

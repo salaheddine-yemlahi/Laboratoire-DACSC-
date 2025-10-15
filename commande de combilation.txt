@@ -2,6 +2,7 @@ g++ -o ClientConsultationBookerQt \
     main.cpp \
     mainwindowclientconsultationbooker.cpp \
     moc_mainwindowclientconsultationbooker.cpp \
+    LibrairieClient.c \
     -I/usr/include/qt5 \
     -I/usr/include/qt5/QtWidgets \
     -I/usr/include/qt5/QtCore \
@@ -10,6 +11,7 @@ g++ -o ClientConsultationBookerQt \
     -lQt5Core \
     -lQt5Gui \
     -fPIC
+
 
 
 

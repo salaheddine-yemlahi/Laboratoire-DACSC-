@@ -6,11 +6,11 @@
 #include "LibrairieClient.h"
 using namespace std;
 
-MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(QWidget *parent)
+MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(char* ip, char* port, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindowClientConsultationBooker)
 {
-    client = connecterServeur("127.0.0.1", 1234);  // ← "127.0.0.1" au lieu de "localhost"
+    client = connecterServeur(ip, atoi(port));
     if (client < 0) {
         printf("Erreur: impossible de connecter avec le serveur\n");
         return;
@@ -18,6 +18,8 @@ MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(QWidget *
     printf("Connexion réussie!\n");
     ui->setupUi(this);
     logoutOk();
+
+
 
     // Configuration de la table des employes (Personnel Garage)
     ui->tableWidgetConsultations->setColumnCount(5);
@@ -42,8 +44,8 @@ MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(QWidget *
     //this->addTupleTableConsultations(3,"Dermatologie","Maboul Paul","2025-10-23", "14:30");
 
     //this->addComboBoxSpecialties("--- TOUTES ---");
-    this->addComboBoxSpecialties("Dermatologie");
-    this->addComboBoxSpecialties("Cardiologie");
+    // this->addComboBoxSpecialties("Dermatologie");
+    // this->addComboBoxSpecialties("Cardiologie");
 
     //this->addComboBoxDoctors("--- TOUS ---");
     this->addComboBoxDoctors("Martin Claire");
@@ -208,6 +210,69 @@ void MainWindowClientConsultationBooker::loginOk() {
     ui->pushButtonLogin->setEnabled(false);
     ui->pushButtonRechercher->setEnabled(true);
     ui->pushButtonReserver->setEnabled(true);
+
+
+
+    TYPE type;
+    type.typeMessage = 4;
+    envoyerMessage(client, &type, sizeof(TYPE));
+
+    // 🔹 Réception du nombre de spécialités
+    int nbResultats;
+    recevoirReponse(client, &nbResultats, sizeof(nbResultats));
+    printf("Nombre de spécialités reçues : %d\n", nbResultats);
+    this->clearComboBoxSpecialties();
+    // 🔹 Si on a reçu des spécialités
+    if (nbResultats > 0)
+    {
+        std::vector<SPECIALITE> tabReponses(nbResultats);
+
+        // Réception de toutes les structures SPECIALITE
+        recevoirReponse(client, tabReponses.data(), nbResultats * sizeof(SPECIALITE));
+
+        // Affichage et ajout dans la comboBox
+        for (int i = 0; i < nbResultats; i++)
+        {
+            printf("Spécialité %d : %d - %s\n", 
+                i + 1, 
+                tabReponses[i].id_specialite, 
+                tabReponses[i].nom_specialite);
+
+            this->addComboBoxSpecialties(tabReponses[i].nom_specialite);
+        }
+    }
+
+
+
+    type.typeMessage = 5;
+    envoyerMessage(client, &type, sizeof(TYPE));
+
+    // 🔹 Réception du nombre de spécialités
+    recevoirReponse(client, &nbResultats, sizeof(nbResultats));
+    printf("Nombre de spécialités reçues : %d\n", nbResultats);
+    this->clearComboBoxDoctors();
+    // 🔹 Si on a reçu des spécialités
+    if (nbResultats > 0)
+    {
+        std::vector<DOCTOR> tabReponses(nbResultats);
+
+        // Réception de toutes les structures DOCTOR
+        recevoirReponse(client, tabReponses.data(), nbResultats * sizeof(DOCTOR));
+
+        // Affichage et ajout dans la comboBox
+        for (int i = 0; i < nbResultats; i++)
+        {
+            printf("Doctor %d : %d - %s %s\n", 
+                i + 1, 
+                tabReponses[i].id_doctor, 
+                tabReponses[i].first_name_doctor,
+                tabReponses[i].last_name_doctor);
+
+            std::string nomComplet = std::string(tabReponses[i].first_name_doctor) + " " + tabReponses[i].last_name_doctor;
+            this->addComboBoxDoctors(nomComplet.c_str()); // si addComboBoxDoctors attend un const char*
+        }
+
+    }
 }
 
 void MainWindowClientConsultationBooker::logoutOk() {
@@ -281,8 +346,9 @@ void MainWindowClientConsultationBooker::on_pushButtonLogin_clicked()
     // Recevoir la réponse
     bool buffer;
     recevoirReponse(client, &buffer, sizeof(buffer));
-    if(buffer){
+    if(buffer > 0){
         loginOk();
+        this->setPatientId(buffer);
     }
 
     // Debug
@@ -296,7 +362,14 @@ void MainWindowClientConsultationBooker::on_pushButtonLogin_clicked()
 
 void MainWindowClientConsultationBooker::on_pushButtonLogout_clicked()
 {
-    logoutOk();
+    TYPE type;
+    type.typeMessage = 3;
+    envoyerMessage(client, &type, sizeof(TYPE));
+    bool buffer;
+    recevoirReponse(client, &buffer, sizeof(buffer));
+    if(buffer > 0){
+        logoutOk();
+    }
 }
 
 void MainWindowClientConsultationBooker::on_pushButtonRechercher_clicked()

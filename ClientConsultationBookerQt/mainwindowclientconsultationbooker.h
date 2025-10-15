@@ -5,6 +5,14 @@
 #include <string>
 using namespace std;
 
+
+typedef struct{
+    int id_doctor;
+    char first_name_doctor[20];
+    char last_name_doctor[20];
+}DOCTOR;
+
+
 typedef struct 
 { 
     char nom[20];
@@ -12,6 +20,11 @@ typedef struct
     int numeroPatient;
     bool nouveauPatient; 
 } PATIENT;
+
+typedef struct{
+    int id_specialite;
+    char nom_specialite[20];
+}SPECIALITE;
 
 typedef struct 
 {
@@ -49,7 +62,7 @@ class MainWindowClientConsultationBooker : public QMainWindow
 
 public:
     int client;
-    MainWindowClientConsultationBooker(QWidget *parent = nullptr);
+    MainWindowClientConsultationBooker(char* ip, char* port, QWidget *parent = nullptr);
     ~MainWindowClientConsultationBooker();
 
     void addTupleTableConsultations(int id, string specialty, string doctor, string date, string hour);

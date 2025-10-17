@@ -356,7 +356,6 @@ void MainWindowClientConsultationBooker::on_pushButtonLogin_clicked()
     cout << "FirstName = " << patient.prenom  << endl;
     cout << "patientId = " << patient.numeroPatient << endl;
     cout << "newPatient = " << patient.nouveauPatient << endl;
-
     
 }
 

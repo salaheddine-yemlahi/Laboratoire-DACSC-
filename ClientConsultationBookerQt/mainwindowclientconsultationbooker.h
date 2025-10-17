@@ -47,7 +47,7 @@ typedef struct{
     char nomSpecialite[40];
     char nomMedecin[20];
     char prenomMedecin[20];
-    char dateConsultation[10];
+    char dateConsultation[20];
     char hourConsultation[5];
 } REPONSE_RECHERCHE;
 

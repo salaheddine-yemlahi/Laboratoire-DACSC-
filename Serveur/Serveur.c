@@ -25,28 +25,11 @@ typedef struct {
 
 /*
 * 1 : LOGIN
-* 2 : RECHERCHER
+* 2 : SEARCH_CONSULTATIONS
 * 3 : LOGOUT
 * 4 : GET_SPECIALTIES
 * 5 : GET_DOCTORS
 */
-
-typedef struct 
-{
-    char nom[50];
-    char nomSpecialite[40];
-    char dateDebut[10];
-    char dateFin[10];
-} RECHERCHE;
-
-typedef struct{
-    int idConsultation;
-    char nomSpecialite[40];
-    char nomMedecin[20];
-    char prenomMedecin[20];
-    char dateConsultation[10];
-    char hourConsultation[5];
-} REPONSE_RECHERCHE;
 
 
 pthread_mutex_t mutexSocketsAcceptees;
@@ -151,7 +134,7 @@ void TraitementConnexion(int sService){
     while(onContinue){
         TYPE type;
         char requete[256];
-        char reponse[2048];
+        char reponse[8192];
         int lus = recevoirMessage(sService,&type,sizeof(TYPE));
         if(lus<=0) { close(sService); return; }
         printf("message reçu %d\n", type.type);
@@ -266,6 +249,7 @@ void TraitementConnexion(int sService){
         }
         else if(type.type==2){
         RECHERCHE recherche;
+        int nbResultats;
         lus = recevoirMessage(sService,&recherche,sizeof(RECHERCHE));
         if(lus<=0) { close(sService); return; }
         printf("DEBUG - Octets reçus pour RECHERCHE: %d/%lu\n", lus, sizeof(RECHERCHE));
@@ -275,38 +259,52 @@ void TraitementConnexion(int sService){
         printf("  dateDebut: '%s'\n", recherche.dateDebut);
         printf("  dateFin: '%s'\n", recherche.dateFin);
         printf("message reçu %s ,%s, %s, %s\n", recherche.nom, recherche.nomSpecialite, recherche.dateDebut, recherche.dateFin);
-        snprintf(requete, sizeof(requete),
-         "SELECT c.id, d.first_name, d.last_name, c.date, c.hour "
-         "FROM consultations c "
-         "INNER JOIN doctors d ON c.doctor_id = d.id "
-         "WHERE CONCAT(d.last_name, ' ', d.first_name) LIKE '%%%s%%' "
-         "AND c.date BETWEEN '%s' AND '%s';",
-         recherche.nom, recherche.dateDebut, recherche.dateFin);
-            if (mysql_query(connexion,requete) != 0)
+
+        sprintf(requete, "SEARCH_CONSULTATIONS#%s#%s#%s#%s", recherche.nom, recherche.nomSpecialite, recherche.dateDebut, recherche.dateFin);
+        reponseBool = SMOP(requete, reponse, sService);
+        printf("%s\n", reponse);
+
+        // Vérifie la réponse reçue
+            char *ptr = strtok(reponse, "#");
+            if (strcmp(ptr, "SEARCH_CONSULTATIONS") == 0)
             {
-                fprintf(stderr, "Erreur de mysql_query: %s\n",mysql_error(connexion));
-                exit(1);
+                // Récupère le nombre de spécialités
+                char *nbStr = strtok(NULL, "#");  // récupère le nombre juste après #
+                int nbResultats = atoi(nbStr);    // convertit en entier
+                printf("Nombre de spécialités : %d\n", nbResultats);
+
+                //  Envoie d’abord le nombre total au client
+                envoyerMessage(sService, &nbResultats, sizeof(int));
+
+                printf("Liste des spécialités reçue :\n");
+
+                // Parcourt et envoie chaque spécialité
+                REPONSE_RECHERCHE tabReponse;
+                char *token;
+                while ((token = strtok(NULL, "#")) != NULL)
+                {
+
+                   sscanf(token, "%d:%19[^:]:%19[^:]:%19[^:]:%5[^:]:%39[^:]",
+       &tabReponse.idConsultation,
+       tabReponse.nomMedecin,
+       tabReponse.prenomMedecin,
+       tabReponse.dateConsultation,
+       tabReponse.hourConsultation,
+       tabReponse.nomSpecialite);
+                    
+                    printf("DEBUG - idConsultation = %d\n", tabReponse.idConsultation);
+                    printf("DEBUG - nomMedecin = '%s'\n", tabReponse.nomMedecin);
+                    printf("DEBUG - prenomMedecin = '%s'\n", tabReponse.prenomMedecin);
+                    printf("DEBUG - dateConsultation = '%s'\n", tabReponse.dateConsultation);
+                    printf("DEBUG - hourConsultation = '%s'\n", tabReponse.hourConsultation);
+                    printf("DEBUG - nomSpecialite = '%s'\n", tabReponse.nomSpecialite);
+
+                    envoyerMessage(sService, &tabReponse, sizeof(REPONSE_RECHERCHE));
+                }
             }
-            printf("Requete SELECT réussie.\n");
-            REPONSE_RECHERCHE reponse;
-            MYSQL_RES *ResultSet;
-            if ((ResultSet = mysql_store_result(connexion)) == NULL)
+            else
             {
-                fprintf(stderr, "Erreur de mysql_store_result: %s\n",mysql_error(connexion));
-                exit(1);
-            }
-            MYSQL_ROW ligne;
-            int nbResultats = mysql_num_rows(ResultSet);
-            envoyerMessage(sService,&nbResultats,sizeof(int));
-            int nbChamps = mysql_num_fields(ResultSet);
-            while ((ligne = mysql_fetch_row(ResultSet)) != NULL)
-            {
-                reponse.idConsultation = atoi(ligne[0]);
-                strcpy(reponse.prenomMedecin, ligne[1]);
-                strcpy(reponse.nomMedecin, ligne[2]);
-                strcpy(reponse.dateConsultation, ligne[3]);
-                strcpy(reponse.hourConsultation, ligne[4]);
-                envoyerMessage(sService,&reponse,sizeof(REPONSE_RECHERCHE));
+                printf("Réponse inattendue : %s\n", ptr);
             }
             continue;
         }

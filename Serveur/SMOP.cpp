@@ -115,7 +115,50 @@ bool SMOP(char* requete, char* reponse, int socket)
         free(tab);
         return true;
     }
+    else if(strcmp(ptr, "SEARCH_CONSULTATIONS")==0){
+        int nb, id_consultation;
+        char name[20], specialtie[40], datedebut[10], datefin[10];
+        strcpy(name, strtok(NULL, "#"));            
+        strcpy(specialtie, strtok(NULL, "#"));         
+        strcpy(datedebut, strtok(NULL, "#"));         
+        strcpy(datefin, strtok(NULL, "#"));    
+       REPONSE_RECHERCHE* tab = SMOP_Consultation(&nb, id_consultation, name, specialtie, datedebut, datefin);
 
+        // Buffer assez grand pour toutes les consultations
+        memset(reponse, 0, sizeof(reponse));
+
+        // On commence la chaîne
+        snprintf(reponse, 8192, "SEARCH_CONSULTATIONS#%d", nb);
+
+        for (int i = 0; i < nb; i++) {
+
+            // Formate l'heure pour remplacer ':' par '-'
+            char hourFormatted[10];
+            strncpy(hourFormatted, tab[i].hourConsultation, sizeof(hourFormatted) - 1);
+            hourFormatted[sizeof(hourFormatted) - 1] = '\0';
+            for (int j = 0; hourFormatted[j]; j++)
+                if (hourFormatted[j] == ':')
+                    hourFormatted[j] = '-';
+
+            // Crée la ligne complète
+            char ligne[256];
+            snprintf(ligne, sizeof(ligne),
+                    "#%d:%s:%s:%s:%s:%s",
+                    tab[i].idConsultation,
+                    tab[i].nomMedecin,
+                    tab[i].prenomMedecin,
+                    tab[i].dateConsultation,
+                    hourFormatted,
+                    tab[i].nomSpecialite);
+
+            // Concatène en vérifiant la taille
+            strncat(reponse, ligne, sizeof(reponse) - strlen(reponse) - 1);
+        }
+
+        printf("DEBUG - Chaîne complète envoyée : %s\n", reponse);
+        free(tab);
+        return true;
+    }
     return true; 
 }
 
@@ -277,6 +320,78 @@ DOCTOR* SMOP_DOCTORS(int* nbResultats)
 
     return tabDoctors;
 
+}
+
+REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name, const char* specialtie, const char* datedebut, const char* datefin)
+{
+    MYSQL* connexion = mysql_init(NULL);
+    if (!connexion) return NULL;
+
+    if (!mysql_real_connect(connexion, "localhost", "Student", "PassStudent1_", "PourStudent", 0, NULL, 0)) {
+        fprintf(stderr, "Erreur BD: %s\n", mysql_error(connexion));
+        mysql_close(connexion);
+        return NULL;
+    }
+
+    char requete[1024];
+    snprintf(requete, sizeof(requete),
+        "SELECT c.id, d.first_name, d.last_name, c.date, c.hour, s.name "
+        "FROM consultations c "
+        "INNER JOIN doctors d ON c.doctor_id = d.id "
+        "INNER JOIN specialties s ON s.id = d.specialty_id "
+        "WHERE CONCAT(d.last_name, ' ', d.first_name) LIKE '%%%s%%' "
+        "AND c.date BETWEEN '%s' AND '%s';",
+        name, datedebut, datefin);
+
+    if (mysql_query(connexion, requete) != 0) {
+        fprintf(stderr, "Erreur de mysql_query: %s\n", mysql_error(connexion));
+        mysql_close(connexion);
+        return NULL;
+    }
+
+    MYSQL_RES* ResultSet = mysql_store_result(connexion);
+    if (!ResultSet) {
+        fprintf(stderr, "Erreur de mysql_store_result: %s\n", mysql_error(connexion));
+        mysql_close(connexion);
+        return NULL;
+    }
+
+    *nbResultats = mysql_num_rows(ResultSet);
+    MYSQL_ROW ligne;
+
+    REPONSE_RECHERCHE* tabConsultation = (REPONSE_RECHERCHE*)malloc((*nbResultats) * sizeof(REPONSE_RECHERCHE));
+    if (!tabConsultation) {
+        fprintf(stderr, "Erreur d’allocation mémoire\n");
+        mysql_free_result(ResultSet);
+        mysql_close(connexion);
+        return NULL;
+    }
+
+    int i = 0;
+    while ((ligne = mysql_fetch_row(ResultSet)) != NULL && i < *nbResultats) {
+        tabConsultation[i].idConsultation = atoi(ligne[0]);
+        strcpy(tabConsultation[i].prenomMedecin, ligne[1]);
+        strcpy(tabConsultation[i].nomMedecin, ligne[2]);
+        strncpy(tabConsultation[i].dateConsultation, ligne[3], 10);
+        tabConsultation[i].dateConsultation[10] = '\0';
+        strcpy(tabConsultation[i].hourConsultation, ligne[4]);
+        strcpy(tabConsultation[i].nomSpecialite, ligne[5]);
+
+        printf("DEBUG - idConsultation = %d\n", tabConsultation[i].idConsultation);
+        printf("DEBUG - prenomMedecin = '%s'\n", tabConsultation[i].prenomMedecin);
+        printf("DEBUG - nomMedecin = '%s'\n", tabConsultation[i].nomMedecin);
+        printf("DEBUG - dateConsultation = '%s'\n", tabConsultation[i].dateConsultation);
+        printf("DEBUG - hourConsultation = '%s'\n", tabConsultation[i].hourConsultation);
+        printf("DEBUG - nomSpecialite = '%s'\n", tabConsultation[i].nomSpecialite);
+
+        i++;
+    }
+
+    mysql_free_result(ResultSet);
+    mysql_close(connexion);
+
+    *nbResultats = i; // ajuste le nombre réel de résultats lus
+    return tabConsultation;
 }
 
 

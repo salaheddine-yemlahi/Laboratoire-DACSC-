@@ -427,8 +427,8 @@ bool SMOP_Book_Consultation(int id_consultation, int id_patient, char* raison){
     }
 
     char requete[1024];
-    snprintf(requete, sizeof(requete), "Update consultations set patient_id = '%d' where id = '%d';",
-        id_patient, id_consultation);
+    snprintf(requete, sizeof(requete), "Update consultations set patient_id = '%d', reason = '%s' where id = '%d';",
+        id_patient, raison, id_consultation);
 
     if (mysql_query(connexion, requete) != 0) {
         fprintf(stderr, "Erreur de mysql_query: %s\n", mysql_error(connexion));

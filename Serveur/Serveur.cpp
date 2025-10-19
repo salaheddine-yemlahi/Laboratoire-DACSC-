@@ -318,8 +318,7 @@ void TraitementConnexion(int sService){
             printf("DEBUG - Contenu reçu:\n");
             printf("  IdConsultation: '%d'\n", bookConsultation.id_consultation);
             printf("  IdPatient: '%d'\n", bookConsultation.id_patient);
-            //printf("  Raison consultation: '%s'\n", bookConsultation.raison_consultation);
-            strcpy(bookConsultation.raison_consultation, " ");
+            printf("  Raison consultation: '%s'\n", bookConsultation.raison_consultation);
             sprintf(requete, "BOOK_CONSULTATION#%d#%d#%s", bookConsultation.id_consultation, bookConsultation.id_patient, bookConsultation.raison_consultation);
             reponseBool = SMOP(requete, reponse, sService);
             printf("%s\n", reponse);

@@ -442,6 +442,16 @@ void MainWindowClientConsultationBooker::on_pushButtonRechercher_clicked()
 
 void MainWindowClientConsultationBooker::on_pushButtonReserver_clicked()
 {
+    bool ok;
+    QString texte = QInputDialog::getText(
+        qobject_cast<QWidget*>(parent()),
+        "La raison de votre consultation",
+        "Entrez la raison :",
+        QLineEdit::Normal,
+        "",
+        &ok
+    );
+
     TYPE type;
     type.typeMessage = 6;
     type.taille = sizeof(BOOK_CONSULTATION);
@@ -451,7 +461,8 @@ void MainWindowClientConsultationBooker::on_pushButtonReserver_clicked()
     BOOK_CONSULTATION BookCons;
     BookCons.id_consultation = tabReponses[selectedTow].idConsultation;
     BookCons.id_patient = this->getPatientId();
-    printf("Book Patient : %d, Book Consultation : %d\n", BookCons.id_patient, BookCons.id_consultation);
+    strncpy(BookCons.raison_consultation, texte.toUtf8().constData(), sizeof(BookCons.raison_consultation) - 1);
+    BookCons.raison_consultation[sizeof(BookCons.raison_consultation) - 1] = '\0';  // sécurité    printf("Book Patient : %d, Book Consultation : %d, Book Raison : %s\n", BookCons.id_patient, BookCons.id_consultation, BookCons.raison_consultation);
     envoyerMessage(client, &BookCons, sizeof(BOOK_CONSULTATION));
     bool result;
     recevoirReponse(client, &result, sizeof(bool));

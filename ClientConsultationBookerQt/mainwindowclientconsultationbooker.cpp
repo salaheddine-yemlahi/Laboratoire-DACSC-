@@ -49,8 +49,8 @@ MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(char* ip,
     // this->addComboBoxSpecialties("Cardiologie");
 
     //this->addComboBoxDoctors("--- TOUS ---");
-    this->addComboBoxDoctors("Martin Claire");
-    this->addComboBoxDoctors("Maboul Paul");
+    //this->addComboBoxDoctors("Martin Claire");
+    //this->addComboBoxDoctors("Maboul Paul");
 }
 
 MainWindowClientConsultationBooker::~MainWindowClientConsultationBooker()

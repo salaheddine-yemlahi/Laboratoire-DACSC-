@@ -352,17 +352,56 @@ REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name,
         mysql_close(connexion);
         return NULL;
     }
+    //this->addComboBoxSpecialties("--- TOUTES ---");
+    // this->addComboBoxSpecialties("Dermatologie");
+    // this->addComboBoxSpecialties("Cardiologie");
 
+    //this->addComboBoxDoctors("--- TOUS ---");
     char requete[1024];
-    snprintf(requete, sizeof(requete),
+    if(strcmp(name, "--- TOUS ---")==0 && strcmp(specialtie, "--- TOUTES ---")==0){
+        snprintf(requete, sizeof(requete),
+        "SELECT c.id, d.first_name, d.last_name, c.date, c.hour, s.name "
+        "FROM consultations c "
+        "INNER JOIN doctors d ON c.doctor_id = d.id "
+        "INNER JOIN specialties s ON s.id = d.specialty_id "
+        "WHERE c.date BETWEEN '%s' AND '%s' "
+        "AND c.patient_id IS NULL;",
+        datedebut, datefin);
+    }
+    else if(strcmp(specialtie, "--- TOUTES ---")==0){
+        snprintf(requete, sizeof(requete),
         "SELECT c.id, d.first_name, d.last_name, c.date, c.hour, s.name "
         "FROM consultations c "
         "INNER JOIN doctors d ON c.doctor_id = d.id "
         "INNER JOIN specialties s ON s.id = d.specialty_id "
         "WHERE CONCAT(d.last_name, ' ', d.first_name) LIKE '%%%s%%' "
         "AND c.date BETWEEN '%s' AND '%s' "
-        "AND patient_id is null;",
+        "AND c.patient_id IS NULL;",
         name, datedebut, datefin);
+    }
+    else if (strcmp(name, "--- TOUS ---")==0){
+        snprintf(requete, sizeof(requete),
+        "SELECT c.id, d.first_name, d.last_name, c.date, c.hour, s.name "
+        "FROM consultations c "
+        "INNER JOIN doctors d ON c.doctor_id = d.id "
+        "INNER JOIN specialties s ON s.id = d.specialty_id "
+        "WHERE s.name LIKE '%%%s%%' "
+        "AND c.date BETWEEN '%s' AND '%s' "
+        "AND c.patient_id IS NULL;",
+        specialtie, datedebut, datefin);
+    }
+    else{
+        snprintf(requete, sizeof(requete),
+        "SELECT c.id, d.first_name, d.last_name, c.date, c.hour, s.name "
+        "FROM consultations c "
+        "INNER JOIN doctors d ON c.doctor_id = d.id "
+        "INNER JOIN specialties s ON s.id = d.specialty_id "
+        "WHERE CONCAT(d.last_name, ' ', d.first_name) LIKE '%%%s%%' "
+        "AND s.name LIKE '%%%s%%' "
+        "AND c.date BETWEEN '%s' AND '%s' "
+        "AND c.patient_id IS NULL;",
+        name, specialtie, datedebut, datefin);
+    }
 
     if (mysql_query(connexion, requete) != 0) {
         fprintf(stderr, "Erreur de mysql_query: %s\n", mysql_error(connexion));
@@ -411,7 +450,7 @@ REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name,
     mysql_free_result(ResultSet);
     mysql_close(connexion);
 
-    *nbResultats = i; // ajuste le nombre réel de résultats lus
+    *nbResultats = i;
     return tabConsultation;
 }
 

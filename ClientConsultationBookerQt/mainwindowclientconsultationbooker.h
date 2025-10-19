@@ -51,7 +51,11 @@ typedef struct{
     char hourConsultation[5];
 } REPONSE_RECHERCHE;
 
-
+typedef struct {
+    int id_consultation;
+    int id_patient;
+    char raison_consultation[100];
+} BOOK_CONSULTATION;
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindowClientConsultationBooker; }
 QT_END_NAMESPACE
@@ -62,6 +66,7 @@ class MainWindowClientConsultationBooker : public QMainWindow
 
 public:
     int client;
+    std::vector<REPONSE_RECHERCHE> tabReponses;
     MainWindowClientConsultationBooker(char* ip, char* port, QWidget *parent = nullptr);
     ~MainWindowClientConsultationBooker();
 

@@ -1,21 +1,12 @@
-// Headers C++ standards (TOUJOURS EN PREMIER)
-#include <cstdlib>
-#include <cstdio>
-#include <cstring>
-#include <cstdint>
-#include <cstddef>
+#include "SMOP.h" 
+#include <stdio.h>
+#include <stdlib.h>
 #include <unistd.h>
 #include <pthread.h>
 #include <stdbool.h>
 #include <signal.h>
-
-// Header MySQL
-#include <mysql/mysql.h>
-
-// Header de ton projet (TOUJOURS EN DERNIER)
-#include "SMOP.h"
-
-//***** Etat du protocole : liste des clients loggés ****************
+#include <string.h>
+#include <mysql.h>
 
 
 
@@ -172,8 +163,8 @@ bool SMOP(char* requete, char* reponse, int socket)
         bool resultat;
         int id_patient, id_consultation;
         char raison[50];
-        id_consultation = atoi(strtok(NULL, "#"));
-        id_patient = atoi(strtok(NULL, "#"));
+        strcpy(id_consultation, strtok(NULL, "#"));
+        strcpy(id_patient, strtok(NULL, "#"));
         strcpy(raison, strtok(NULL, "#"));
         resultat = SMOP_Book_Consultation(id_consultation, id_patient, raison);
         snprintf(reponse, 8192, "BOOK_CONSULTATION#%d", resultat);
@@ -360,8 +351,7 @@ REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name,
         "INNER JOIN doctors d ON c.doctor_id = d.id "
         "INNER JOIN specialties s ON s.id = d.specialty_id "
         "WHERE CONCAT(d.last_name, ' ', d.first_name) LIKE '%%%s%%' "
-        "AND c.date BETWEEN '%s' AND '%s' "
-        "AND patient_id is null;",
+        "AND c.date BETWEEN '%s' AND '%s';",
         name, datedebut, datefin);
 
     if (mysql_query(connexion, requete) != 0) {
@@ -427,14 +417,19 @@ bool SMOP_Book_Consultation(int id_consultation, int id_patient, char* raison){
     }
 
     char requete[1024];
-    snprintf(requete, sizeof(requete), "Update consultations set patient_id = '%d' where id = '%d';",
-        id_patient, id_consultation);
+    snprintf(requete, sizeof(requete),
+        "UPDATE consultations "
+        "SET patient_id = '%d', "
+        "reason = '%s' "
+        "WHERE id = '%d';",
+        id_patient, raison, id_consultation);
 
     if (mysql_query(connexion, requete) != 0) {
         fprintf(stderr, "Erreur de mysql_query: %s\n", mysql_error(connexion));
         mysql_close(connexion);
         return false;
     }
+    mysql_free_result(ResultSet);
     mysql_close(connexion);
     return true;
 }

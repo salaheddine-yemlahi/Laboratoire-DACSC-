@@ -9,6 +9,7 @@ using namespace std;
 MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(char* ip, char* port, QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindowClientConsultationBooker)
+    , tabReponses(20)
 {
     client = connecterServeur(ip, atoi(port));
     if (client < 0) {
@@ -18,7 +19,7 @@ MainWindowClientConsultationBooker::MainWindowClientConsultationBooker(char* ip,
     printf("Connexion réussie!\n");
     ui->setupUi(this);
     logoutOk();
-
+    
 
 
     // Configuration de la table des employes (Personnel Garage)
@@ -281,7 +282,7 @@ void MainWindowClientConsultationBooker::logoutOk() {
     ui->lineEditFirstName->setReadOnly(false);
     setFirstName("");
     ui->spinBoxId->setReadOnly(false);
-    setPatientId(1);
+    // setPatientId(1);
     ui->checkBoxNewPatient->setEnabled(true);
     setNewPatientChecked(false);
     ui->pushButtonLogout->setEnabled(false);
@@ -348,7 +349,7 @@ void MainWindowClientConsultationBooker::on_pushButtonLogin_clicked()
     recevoirReponse(client, &buffer, sizeof(buffer));
     if(buffer > 0){
         loginOk();
-        this->setPatientId(buffer);
+        this->setPatientId(patient.numeroPatient);
     }
 
     // Debug
@@ -411,7 +412,6 @@ void MainWindowClientConsultationBooker::on_pushButtonRechercher_clicked()
 
     // Le reste de votre code reste identique...
     if(nbResultats > 0) {
-        std::vector<REPONSE_RECHERCHE> tabReponses(nbResultats);
         recevoirReponse(client, tabReponses.data(), nbResultats * sizeof(REPONSE_RECHERCHE));
         char nomComplet[50];
         for(int i = 0; i < nbResultats; i++)
@@ -442,7 +442,18 @@ void MainWindowClientConsultationBooker::on_pushButtonRechercher_clicked()
 
 void MainWindowClientConsultationBooker::on_pushButtonReserver_clicked()
 {
-    int selectedTow = this->getSelectionIndexTableConsultations();
+    TYPE type;
+    type.typeMessage = 6;
+    type.taille = sizeof(BOOK_CONSULTATION);
 
-    cout << "selectedRow = " << selectedTow << endl;
+    envoyerMessage(client, &type, sizeof(TYPE));
+    int selectedTow = this->getSelectionIndexTableConsultations();
+    BOOK_CONSULTATION BookCons;
+    BookCons.id_consultation = tabReponses[selectedTow].idConsultation;
+    BookCons.id_patient = this->getPatientId();
+    printf("Book Patient : %d, Book Consultation : %d\n", BookCons.id_patient, BookCons.id_consultation);
+    envoyerMessage(client, &BookCons, sizeof(BOOK_CONSULTATION));
+    bool result;
+    recevoirReponse(client, &result, sizeof(bool));
+    printf("résultat de la reservation : %d\n", result);
 }

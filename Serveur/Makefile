@@ -1,11 +1,14 @@
-serveur: Serveur.c LibrairieServeur.c SMOP.cpp
-	g++ -o serveur Serveur.c LibrairieServeur.c SMOP.cpp -pthread -Wall -I/usr/include/mysql -L/usr/lib64/mysql -lmysqlclient
+serveur: Serveur.o LibrairieServeur.o SMOP.o
+	g++ -o serveur Serveur.o LibrairieServeur.o SMOP.o -pthread -L/usr/lib64/mysql -lmysqlclient
 
-LibrairieServeur.o: LibrairieServeur.c LibrairieServeur.h
-	gcc -c LibrairieServeur.c -o LibrairieServeur.o -Wall
+Serveur.o: Serveur.cpp LibrairieServeur.h SMOP.h
+	g++ -c Serveur.cpp -Wall
+
+LibrairieServeur.o: LibrairieServeur.cpp LibrairieServeur.h
+	g++ -c LibrairieServeur.cpp -Wall
 
 SMOP.o: SMOP.cpp SMOP.h
-	g++ -c SMOP.cpp -o SMOP.o -Wall
+	g++ -c SMOP.cpp -Wall -I/usr/include/mysql
 
 clean:
-	rm -f serveur testServeur *.o
+	rm -f serveur *.o

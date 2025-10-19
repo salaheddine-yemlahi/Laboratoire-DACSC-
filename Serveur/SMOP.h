@@ -27,7 +27,13 @@ typedef struct{
     char hourConsultation[5];
 } REPONSE_RECHERCHE;
 
-bool SMOP(char* requete, char* reponse, int socket); 
+typedef struct {
+    int id_consultation;
+    int id_patient;
+    char raison_consultation[100];
+} BOOK_CONSULTATION;
+
+bool SMOP(char* requete, char* reponse, int socket);
 bool SMOP_Login(int id,const char* user, const char* password);
 int SMOP_Register(const char* user, const char* password);
 //int  SMOP_Operation(char op, int a, int b); 
@@ -35,4 +41,5 @@ void SMOP_Close();
 SPECIALITE* SMOP_SPECIALITES(int* nbResultats);
 REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name, const char* specialtie, const char* datedebut, const char* datefin);
 DOCTOR* SMOP_DOCTORS(int* nbResultats);
+bool SMOP_Book_Consultation(int id_consultation, int id_patient, char* raison);
 #endif

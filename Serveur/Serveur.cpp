@@ -6,7 +6,6 @@
 #include <stdbool.h>
 #include <signal.h>
 #include <mysql/mysql.h>
-
 #include "LibrairieServeur.h"
 #include "SMOP.h"
 
@@ -23,7 +22,6 @@ typedef struct {
     int type;
     int taille;
 }TYPE;
-
 /*
 * 1 : LOGIN
 * 2 : SEARCH_CONSULTATIONS
@@ -42,9 +40,8 @@ int serveur;
 
 int PORT_RESERVATION;
 int NB_THREADS_POOL;
-MYSQL* connexion;
 
-// Prototypes
+
 void HandlerSIGINT(int s);
 void TraitementConnexion(int sService);
 void* FctThreadClient(void* p);
@@ -69,14 +66,6 @@ int main(){
     for(int i=0;i<TAILLE_FILE_ATTENTE;i++) socketsAcceptees[i]=-1;
 
 
-    connexion = mysql_init(NULL);
-    if (!mysql_real_connect(connexion,"localhost","Student","PassStudent1_","PourStudent",0,NULL,0)){
-        fprintf(stderr,"Erreur BD: %s\n", mysql_error(connexion));
-        exit(1);
-    }
-    printf("Connexion BD OK\n");
-
-
     struct sigaction A;
     A.sa_flags = 0;
     sigemptyset(&A.sa_mask);
@@ -87,12 +76,12 @@ int main(){
     serveur = creerServeur(PORT_RESERVATION);
     if (serveur < 0) { perror("Erreur creerServeur"); exit(1); }
 
-    // Pool threads
+
     pthread_t threads[NB_THREADS_POOL];
     for(int i=0;i<NB_THREADS_POOL;i++)
         pthread_create(&threads[i],NULL,FctThreadClient,NULL);
 
-    // Boucle accept
+
     while(1){
         char ipClient[50];
         int sService = accepterClient(serveur, ipClient);
@@ -107,7 +96,7 @@ int main(){
     return 0;
 }
 
-// Thread client
+
 void* FctThreadClient(void* p){
     int sService;
     while(1){
@@ -128,19 +117,16 @@ void HandlerSIGINT(int s){
     exit(0);
 }
 
-// Traitement connexion
 void TraitementConnexion(int sService){
     bool onContinue=true;
-    char requete[200];
+    char requete[256];
     bool reponseBool;
+    char reponse[8192];
     while(onContinue){
         TYPE type;
-        char requete[256];
-        char reponse[8192];
         int lus = recevoirMessage(sService,&type,sizeof(TYPE));
         if(lus<=0) { close(sService); return; }
         printf("message reçu %d\n", type.type);
-
         if(type.type==1){
             PATIENT patient;
             lus = recevoirMessage(sService,&patient,sizeof(PATIENT));
@@ -152,18 +138,14 @@ void TraitementConnexion(int sService){
                 sprintf(requete, "LOGIN#existant#%s#%s#%d", patient.nom, patient.prenom, patient.numeroPatient);
             }
             reponseBool = SMOP(requete, reponse, sService);
-            if(strcmp(reponse, "LOGIN#ok")==0){
-                envoyerMessage(sService,&reponseBool,sizeof(bool));
-            }
+            envoyerMessage(sService,&reponseBool,sizeof(bool));
             
             continue;
         }
         else if(type.type==3){
             sprintf(requete, "LOGOUT");
             reponseBool = SMOP(requete, reponse, sService);
-            if(strcmp(reponse, "LOGOUT#ok")==0){
-                envoyerMessage(sService,&reponseBool,sizeof(bool));
-            }
+            envoyerMessage(sService,&reponseBool,sizeof(bool));
         }
         else if(type.type==5){
             DOCTOR doc;
@@ -173,17 +155,12 @@ void TraitementConnexion(int sService){
             char *ptr = strtok(reponse, "#");
             if (strcmp(ptr, "GET_DOCTORS") == 0)
             {
-                // Récupère le nombre de spécialités
-                char *nbStr = strtok(NULL, "#");  // récupère le nombre juste après #
-                int nbResultats = atoi(nbStr);    // convertit en entier
+                char *nbStr = strtok(NULL, "#");
+                int nbResultats = atoi(nbStr);
                 printf("Nombre de doctors : %d\n", nbResultats);
 
-                //  Envoie d’abord le nombre total au client
                 envoyerMessage(sService, &nbResultats, sizeof(int));
 
-                printf("Liste des doctors reçue :\n");
-
-                // Parcourt et envoie chaque spécialité
                 char *token;
                 while ((token = strtok(NULL, "#")) != NULL)
                 {
@@ -191,8 +168,8 @@ void TraitementConnexion(int sService){
                     char first_name[64];
                     char last_name[64];
 
-                    // Découpe "id:nom"
-                    sscanf(token, "%d:%63[^:]:%63[^:]", &id, first_name, last_name);
+
+                    sscanf(token, "%d:%63[^:]:%63[^:]", &id, first_name, last_name); //[^:] veut dire “tout sauf : 
 
                     doc.id_doctor = id;
                     strcpy(doc.first_name_doctor, first_name);
@@ -210,32 +187,29 @@ void TraitementConnexion(int sService){
             SPECIALITE spec;
             int nbResultats;
 
-            // Prépare et envoie la requête
+
             sprintf(requete, "GET_SPECIALTIES#");
             reponseBool = SMOP(requete, reponse, sService);
 
-            // Vérifie la réponse reçue
+
             char *ptr = strtok(reponse, "#");
             if (strcmp(ptr, "GET_SPECIALTIES") == 0)
             {
-                // Récupère le nombre de spécialités
-                char *nbStr = strtok(NULL, "#");  // récupère le nombre juste après #
-                int nbResultats = atoi(nbStr);    // convertit en entier
+
+                char *nbStr = strtok(NULL, "#");
+                int nbResultats = atoi(nbStr); 
                 printf("Nombre de spécialités : %d\n", nbResultats);
 
-                //  Envoie d’abord le nombre total au client
                 envoyerMessage(sService, &nbResultats, sizeof(int));
 
-                printf("Liste des spécialités reçue :\n");
 
-                // Parcourt et envoie chaque spécialité
                 char *token;
                 while ((token = strtok(NULL, "#")) != NULL)
                 {
                     int id;
                     char nom[64];
 
-                    // Découpe "id:nom"
+
                     sscanf(token, "%d:%63s", &id, nom);
 
                     spec.id_specialite = id;
@@ -254,33 +228,20 @@ void TraitementConnexion(int sService){
         int nbResultats;
         lus = recevoirMessage(sService,&recherche,sizeof(RECHERCHE));
         if(lus<=0) { close(sService); return; }
-        printf("DEBUG - Octets reçus pour RECHERCHE: %d/%lu\n", lus, sizeof(RECHERCHE));
-        printf("DEBUG - Contenu reçu:\n");
-        printf("  nom: '%s'\n", recherche.nom);
-        printf("  specialite: '%s'\n", recherche.nomSpecialite);
-        printf("  dateDebut: '%s'\n", recherche.dateDebut);
-        printf("  dateFin: '%s'\n", recherche.dateFin);
-        printf("message reçu %s ,%s, %s, %s\n", recherche.nom, recherche.nomSpecialite, recherche.dateDebut, recherche.dateFin);
-
         sprintf(requete, "SEARCH_CONSULTATIONS#%s#%s#%s#%s", recherche.nom, recherche.nomSpecialite, recherche.dateDebut, recherche.dateFin);
         reponseBool = SMOP(requete, reponse, sService);
-        printf("%s\n", reponse);
 
-        // Vérifie la réponse reçue
             char *ptr = strtok(reponse, "#");
             if (strcmp(ptr, "SEARCH_CONSULTATIONS") == 0)
             {
-                // Récupère le nombre de spécialités
-                char *nbStr = strtok(NULL, "#");  // récupère le nombre juste après #
-                int nbResultats = atoi(nbStr);    // convertit en entier
+
+                char *nbStr = strtok(NULL, "#");  
+                int nbResultats = atoi(nbStr);   
                 printf("Nombre de spécialités : %d\n", nbResultats);
 
-                //  Envoie d’abord le nombre total au client
+
                 envoyerMessage(sService, &nbResultats, sizeof(int));
 
-                printf("Liste des spécialités reçue :\n");
-
-                // Parcourt et envoie chaque spécialité
                 REPONSE_RECHERCHE tabReponse;
                 char *token;
                 while ((token = strtok(NULL, "#")) != NULL)
@@ -293,13 +254,6 @@ void TraitementConnexion(int sService){
                     tabReponse.dateConsultation,
                     tabReponse.hourConsultation,
                     tabReponse.nomSpecialite);
-                    
-                    printf("DEBUG - idConsultation = %d\n", tabReponse.idConsultation);
-                    printf("DEBUG - nomMedecin = '%s'\n", tabReponse.nomMedecin);
-                    printf("DEBUG - prenomMedecin = '%s'\n", tabReponse.prenomMedecin);
-                    printf("DEBUG - dateConsultation = '%s'\n", tabReponse.dateConsultation);
-                    printf("DEBUG - hourConsultation = '%s'\n", tabReponse.hourConsultation);
-                    printf("DEBUG - nomSpecialite = '%s'\n", tabReponse.nomSpecialite);
 
                     envoyerMessage(sService, &tabReponse, sizeof(REPONSE_RECHERCHE));
                 }
@@ -314,20 +268,14 @@ void TraitementConnexion(int sService){
             BOOK_CONSULTATION bookConsultation;
             lus = recevoirMessage(sService,&bookConsultation,sizeof(BOOK_CONSULTATION));
             if(lus<=0) { close(sService); return; }
-            printf("DEBUG - Octets reçus pour BOOK_CONSULTATION: %d/%lu\n", lus, sizeof(BOOK_CONSULTATION));
-            printf("DEBUG - Contenu reçu:\n");
-            printf("  IdConsultation: '%d'\n", bookConsultation.id_consultation);
-            printf("  IdPatient: '%d'\n", bookConsultation.id_patient);
-            printf("  Raison consultation: '%s'\n", bookConsultation.raison_consultation);
+
             sprintf(requete, "BOOK_CONSULTATION#%d#%d#%s", bookConsultation.id_consultation, bookConsultation.id_patient, bookConsultation.raison_consultation);
             reponseBool = SMOP(requete, reponse, sService);
-            printf("%s\n", reponse);
             char *ptr = strtok(reponse, "#");
             bool repBool;
             if (strcmp(ptr, "BOOK_CONSULTATION") == 0){
                 char *nbStr = strtok(NULL, "#"); 
-                int nbResultats = atoi(nbStr);    // convertit en entier
-                printf("reponse de SMOP : %d\n", nbResultats);
+                int nbResultats = atoi(nbStr);   
                 envoyerMessage(sService, &nbResultats, sizeof(bool));
             }
 

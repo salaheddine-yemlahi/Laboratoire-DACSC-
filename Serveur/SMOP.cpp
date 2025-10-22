@@ -1,4 +1,3 @@
-// Headers C++ standards (TOUJOURS EN PREMIER)
 #include <cstdlib>
 #include <cstdio>
 #include <cstring>
@@ -8,25 +7,16 @@
 #include <pthread.h>
 #include <stdbool.h>
 #include <signal.h>
-
-// Header MySQL
 #include <mysql/mysql.h>
-
-// Header de ton projet (TOUJOURS EN DERNIER)
 #include "SMOP.h"
 
-//***** Etat du protocole : liste des clients loggés ****************
 
-
-
-//***** Etat du protocole : liste des clients loggés **************** 
 int clients[NB_MAX_CLIENTS]; 
 int nbClients = 0;
 int  estPresent(int socket); 
 void ajoute(int socket); 
 void retire(int socket); 
 pthread_mutex_t mutexClients = PTHREAD_MUTEX_INITIALIZER; 
-//***** Parsing de la requete et creation de la reponse ************* 
 
 bool SMOP(char* requete, char* reponse, int socket) 
 { 
@@ -76,7 +66,7 @@ bool SMOP(char* requete, char* reponse, int socket)
             if (SMOP_Login(numeroPatient, user, password)) // login réussi
             {
                 sprintf(reponse, "LOGIN#ok");
-                // ajoute(socket); // si nécessaire
+                ajoute(socket);
                 return true;
             }
             else
@@ -196,10 +186,6 @@ bool SMOP_Login(int id, const char* user, const char* password)
         mysql_close(connexion);
         return false;
     }
-
-    // char userEsc[128], passwordEsc[128];
-    // mysql_real_escape_string(connexion, userEsc, user, strlen(user));
-    // mysql_real_escape_string(connexion, passwordEsc, password, strlen(password));
 
     char requete[512];
     snprintf(requete, sizeof(requete),
@@ -327,11 +313,11 @@ DOCTOR* SMOP_DOCTORS(int* nbResultats)
     int i = 0;
     while ((ligne = mysql_fetch_row(ResultSet)) != NULL && i < *nbResultats)
     {
-        tabDoctors[i].id_doctor = atoi(ligne[0]); // id
+        tabDoctors[i].id_doctor = atoi(ligne[0]);
         strncpy(tabDoctors[i].first_name_doctor, ligne[1], 19);
-        tabDoctors[i].first_name_doctor[19] = '\0'; // sécurité
+        tabDoctors[i].first_name_doctor[19] = '\0';
         strncpy(tabDoctors[i].last_name_doctor, ligne[2], 19);
-        tabDoctors[i].last_name_doctor[19] = '\0';  // sécurité
+        tabDoctors[i].last_name_doctor[19] = '\0';
         i++;
     }
 
@@ -352,11 +338,6 @@ REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name,
         mysql_close(connexion);
         return NULL;
     }
-    //this->addComboBoxSpecialties("--- TOUTES ---");
-    // this->addComboBoxSpecialties("Dermatologie");
-    // this->addComboBoxSpecialties("Cardiologie");
-
-    //this->addComboBoxDoctors("--- TOUS ---");
     char requete[1024];
     if(strcmp(name, "--- TOUS ---")==0 && strcmp(specialtie, "--- TOUTES ---")==0){
         snprintf(requete, sizeof(requete),
@@ -436,14 +417,6 @@ REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name,
         tabConsultation[i].dateConsultation[10] = '\0';
         strcpy(tabConsultation[i].hourConsultation, ligne[4]);
         strcpy(tabConsultation[i].nomSpecialite, ligne[5]);
-
-        printf("DEBUG - idConsultation = %d\n", tabConsultation[i].idConsultation);
-        printf("DEBUG - prenomMedecin = '%s'\n", tabConsultation[i].prenomMedecin);
-        printf("DEBUG - nomMedecin = '%s'\n", tabConsultation[i].nomMedecin);
-        printf("DEBUG - dateConsultation = '%s'\n", tabConsultation[i].dateConsultation);
-        printf("DEBUG - hourConsultation = '%s'\n", tabConsultation[i].hourConsultation);
-        printf("DEBUG - nomSpecialite = '%s'\n", tabConsultation[i].nomSpecialite);
-
         i++;
     }
 
@@ -494,8 +467,6 @@ int SMOP_Register(const char* user, const char* password)
     printf("Connexion BD OK\n");
 
     char requete[512];
-
-    // INSERT patient
     snprintf(requete, sizeof(requete),
              "INSERT INTO patients (last_name, first_name) VALUES ('%s', '%s');",
              user, password);
@@ -511,7 +482,7 @@ int SMOP_Register(const char* user, const char* password)
 
     mysql_close(connexion);
 
-    return idPatient; // retourne le numéro du patient créé
+    return idPatient;
 }
 
 

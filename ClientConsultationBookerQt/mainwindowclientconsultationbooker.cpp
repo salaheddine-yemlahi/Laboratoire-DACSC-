@@ -218,20 +218,15 @@ void MainWindowClientConsultationBooker::loginOk() {
     type.typeMessage = 4;
     envoyerMessage(client, &type, sizeof(TYPE));
 
-    // 🔹 Réception du nombre de spécialités
     int nbResultats;
     recevoirReponse(client, &nbResultats, sizeof(nbResultats));
     printf("Nombre de spécialités reçues : %d\n", nbResultats);
     this->clearComboBoxSpecialties();
-    // 🔹 Si on a reçu des spécialités
     if (nbResultats > 0)
     {
-        std::vector<SPECIALITE> tabReponses(nbResultats);
+        vector<SPECIALITE> tabReponses(nbResultats);
 
-        // Réception de toutes les structures SPECIALITE
         recevoirReponse(client, tabReponses.data(), nbResultats * sizeof(SPECIALITE));
-
-        // Affichage et ajout dans la comboBox
         for (int i = 0; i < nbResultats; i++)
         {
             printf("Spécialité %d : %d - %s\n", 
@@ -248,19 +243,15 @@ void MainWindowClientConsultationBooker::loginOk() {
     type.typeMessage = 5;
     envoyerMessage(client, &type, sizeof(TYPE));
 
-    // 🔹 Réception du nombre de spécialités
     recevoirReponse(client, &nbResultats, sizeof(nbResultats));
     printf("Nombre de spécialités reçues : %d\n", nbResultats);
     this->clearComboBoxDoctors();
-    // 🔹 Si on a reçu des spécialités
     if (nbResultats > 0)
     {
-        std::vector<DOCTOR> tabReponses(nbResultats);
+        vector<DOCTOR> tabReponses(nbResultats);
 
-        // Réception de toutes les structures DOCTOR
         recevoirReponse(client, tabReponses.data(), nbResultats * sizeof(DOCTOR));
 
-        // Affichage et ajout dans la comboBox
         for (int i = 0; i < nbResultats; i++)
         {
             printf("Doctor %d : %d - %s %s\n", 
@@ -270,7 +261,7 @@ void MainWindowClientConsultationBooker::loginOk() {
                 tabReponses[i].last_name_doctor);
 
             std::string nomComplet = std::string(tabReponses[i].first_name_doctor) + " " + tabReponses[i].last_name_doctor;
-            this->addComboBoxDoctors(nomComplet.c_str()); // si addComboBoxDoctors attend un const char*
+            this->addComboBoxDoctors(nomComplet.c_str());
         }
 
     }
@@ -282,7 +273,7 @@ void MainWindowClientConsultationBooker::logoutOk() {
     ui->lineEditFirstName->setReadOnly(false);
     setFirstName("");
     ui->spinBoxId->setReadOnly(false);
-    // setPatientId(1);
+    setPatientId(0);
     ui->checkBoxNewPatient->setEnabled(true);
     setNewPatientChecked(false);
     ui->pushButtonLogout->setEnabled(false);
@@ -326,7 +317,6 @@ void MainWindowClientConsultationBooker::on_pushButtonLogin_clicked()
     PATIENT patient;
     TYPE type;
 
-    // Copier les chaînes C++ dans les tableaux C
     strncpy(patient.nom, this->getLastName().c_str(), sizeof(patient.nom)-1);
     patient.nom[sizeof(patient.nom)-1] = '\0';
 
@@ -336,28 +326,18 @@ void MainWindowClientConsultationBooker::on_pushButtonLogin_clicked()
     patient.numeroPatient = this->getPatientId();
     patient.nouveauPatient = this->isNewPatientSelected();
 
-    // Préparer le type de message
     type.typeMessage = 1;
     type.taille = sizeof(PATIENT);
 
-    // Envoyer le message
     envoyerMessage(client, &type, sizeof(TYPE));
     envoyerMessage(client, &patient, sizeof(PATIENT));
 
-    // Recevoir la réponse
     bool buffer;
     recevoirReponse(client, &buffer, sizeof(buffer));
     if(buffer > 0){
         loginOk();
         this->setPatientId(patient.numeroPatient);
     }
-
-    // Debug
-    cout << "lastName = " << patient.nom << endl;
-    cout << "FirstName = " << patient.prenom  << endl;
-    cout << "patientId = " << patient.numeroPatient << endl;
-    cout << "newPatient = " << patient.nouveauPatient << endl;
-    
 }
 
 void MainWindowClientConsultationBooker::on_pushButtonLogout_clicked()
@@ -376,41 +356,40 @@ void MainWindowClientConsultationBooker::on_pushButtonRechercher_clicked()
 {
     this->clearTableConsultations();
     RECHERCHE recherche;
-    // Copie sécurisée de la spécialité
     strncpy(recherche.nomSpecialite, this->getSelectionSpecialty().c_str(), sizeof(recherche.nomSpecialite)-1);
     recherche.nomSpecialite[sizeof(recherche.nomSpecialite)-1] = '\0';
 
-    // Copie sécurisée du nom du docteur
+
     string doctor = this->getSelectionDoctor();
     strncpy(recherche.nom, doctor.c_str(), sizeof(recherche.nom)-1);
     recherche.nom[sizeof(recherche.nom)-1] = '\0';
 
-    // Copie sécurisée de la date de début
+
     string startDate = this->getStartDate();
     strncpy(recherche.dateDebut, startDate.c_str(), sizeof(recherche.dateDebut)-1);
     recherche.dateDebut[sizeof(recherche.dateDebut)-1] = '\0';
 
-    // Copie sécurisée de la date de fin
+
     string endDate = this->getEndDate();
     strncpy(recherche.dateFin, endDate.c_str(), sizeof(recherche.dateFin)-1);
     recherche.dateFin[sizeof(recherche.dateFin)-1] = '\0';
 
     TYPE type;
-    type.typeMessage = 2;  // RECHERCHE_CONSULTATION
+    type.typeMessage = 2;
     type.taille = sizeof(RECHERCHE);
 
     envoyerMessage(client, &type, sizeof(TYPE));
 
-    // 2. Envoyer directement la structure RECHERCHE (SANS envoyer sa taille avant !)
+
     envoyerMessage(client, &recherche, sizeof(RECHERCHE));
 
-    // 3. Recevoir le nombre de résultats
+
     int nbResultats;
     recevoirReponse(client, &nbResultats, sizeof(nbResultats));
 
     printf("Nombre de résultats reçus: %d\n", nbResultats);
 
-    // Le reste de votre code reste identique...
+
     if(nbResultats > 0) {
         recevoirReponse(client, tabReponses.data(), nbResultats * sizeof(REPONSE_RECHERCHE));
         char nomComplet[50];
@@ -462,7 +441,7 @@ void MainWindowClientConsultationBooker::on_pushButtonReserver_clicked()
     BookCons.id_consultation = tabReponses[selectedTow].idConsultation;
     BookCons.id_patient = this->getPatientId();
     strncpy(BookCons.raison_consultation, texte.toUtf8().constData(), sizeof(BookCons.raison_consultation) - 1);
-    BookCons.raison_consultation[sizeof(BookCons.raison_consultation) - 1] = '\0';  // sécurité    printf("Book Patient : %d, Book Consultation : %d, Book Raison : %s\n", BookCons.id_patient, BookCons.id_consultation, BookCons.raison_consultation);
+    BookCons.raison_consultation[sizeof(BookCons.raison_consultation) - 1] = '\0';  
     envoyerMessage(client, &BookCons, sizeof(BOOK_CONSULTATION));
     bool result;
     recevoirReponse(client, &result, sizeof(bool));

@@ -36,7 +36,6 @@ typedef struct {
 bool SMOP(char* requete, char* reponse, int socket);
 bool SMOP_Login(int id,const char* user, const char* password);
 int SMOP_Register(const char* user, const char* password);
-//int  SMOP_Operation(char op, int a, int b); 
 void SMOP_Close(); 
 SPECIALITE* SMOP_SPECIALITES(int* nbResultats);
 REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name, const char* specialtie, const char* datedebut, const char* datefin);

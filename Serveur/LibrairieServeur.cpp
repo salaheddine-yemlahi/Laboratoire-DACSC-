@@ -18,7 +18,7 @@ int creerServeur(int port){
 
     if (bind(sock, (struct sockaddr*)&adresse, sizeof(adresse)) < 0) return -1;
 
-    listen(sock, 5); // max 5 connexions en attente
+    listen(sock, 20);
     return sock;
 }
 

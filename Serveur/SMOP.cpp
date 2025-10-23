@@ -44,13 +44,13 @@ bool SMOP(char* requete, char* reponse, int socket)
             int numeroPatient = SMOP_Register(user, password);
             if (numeroPatient > 0)
             {
-                sprintf(reponse, "nouveau#ok#%d", numeroPatient);
+                sprintf(reponse, "ok#%d", numeroPatient);
                 ajoute(socket);
                 return true;
             }
             else
             {
-                sprintf(reponse, "LOGIN#ko#Mauvais identifiants !");
+                sprintf(reponse, "ko");
                 return false;
             }
         }
@@ -65,13 +65,13 @@ bool SMOP(char* requete, char* reponse, int socket)
             // Vérifie login
             if (SMOP_Login(numeroPatient, user, password)) // login réussi
             {
-                sprintf(reponse, "LOGIN#ok");
+                sprintf(reponse, "ok#%d", numeroPatient);
                 ajoute(socket);
                 return true;
             }
             else
             {
-                sprintf(reponse, "LOGIN#ko#Mauvais identifiants !");
+                sprintf(reponse, "ko");
                 return false;
             }
         }

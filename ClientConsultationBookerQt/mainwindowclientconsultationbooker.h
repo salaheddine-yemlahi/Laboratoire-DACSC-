@@ -12,7 +12,6 @@ typedef struct{
     char last_name_doctor[20];
 }DOCTOR;
 
-
 typedef struct 
 { 
     char nom[20];

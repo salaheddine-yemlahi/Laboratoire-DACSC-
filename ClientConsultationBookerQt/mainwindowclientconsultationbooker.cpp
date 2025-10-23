@@ -334,9 +334,11 @@ void MainWindowClientConsultationBooker::on_pushButtonLogin_clicked()
 
     bool buffer;
     recevoirReponse(client, &buffer, sizeof(buffer));
+    int id_pat;
     if(buffer > 0){
+        recevoirReponse(client, &id_pat, sizeof(int));
         loginOk();
-        this->setPatientId(patient.numeroPatient);
+        this->setPatientId(id_pat);
     }
 }
 

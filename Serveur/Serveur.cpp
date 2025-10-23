@@ -40,6 +40,7 @@ int serveur;
 
 int PORT_RESERVATION;
 int NB_THREADS_POOL;
+int PORT_ADMIN;
 
 
 void HandlerSIGINT(int s);
@@ -47,52 +48,139 @@ void TraitementConnexion(int sService);
 void* FctThreadClient(void* p);
 bool CBP_Login(const char* user, const char* password);
 
-int main(){
-
+int main() {
+    // --- Lecture configuration ---
     FILE *file = fopen("config.conf", "r");
     if (!file) {
-        perror("Erreur ouverture config.txt");
+        perror("Erreur ouverture config.conf");
         return 1;
     }
-
     fscanf(file, "PORT_RESERVATION=%d\n", &PORT_RESERVATION);
+    fscanf(file, "PORT_ADMIN=%d\n", &PORT_ADMIN);
     fscanf(file, "NB_THREADS_POOL=%d\n", &NB_THREADS_POOL);
-
     fclose(file);
-
-
-    pthread_mutex_init(&mutexSocketsAcceptees,NULL);
-    pthread_cond_init(&condSocketsAcceptees,NULL);
-    for(int i=0;i<TAILLE_FILE_ATTENTE;i++) socketsAcceptees[i]=-1;
-
-
+    
+    printf("[INFO] Configuration chargée : PORT_RESERVATION=%d, PORT_ADMIN=%d, NB_THREADS=%d\n", 
+           PORT_RESERVATION, PORT_ADMIN, NB_THREADS_POOL);
+    
+    // --- Initialisation synchronisation ---
+    pthread_mutex_init(&mutexSocketsAcceptees, NULL);
+    pthread_cond_init(&condSocketsAcceptees, NULL);
+    for (int i = 0; i < TAILLE_FILE_ATTENTE; i++) 
+        socketsAcceptees[i] = -1;
+    
+    // --- Gestion signal SIGINT ---
     struct sigaction A;
     A.sa_flags = 0;
     sigemptyset(&A.sa_mask);
     A.sa_handler = HandlerSIGINT;
-    sigaction(SIGINT,&A,NULL);
-
-
-    serveur = creerServeur(PORT_RESERVATION);
-    if (serveur < 0) { perror("Erreur creerServeur"); exit(1); }
-
-
-    pthread_t threads[NB_THREADS_POOL];
-    for(int i=0;i<NB_THREADS_POOL;i++)
-        pthread_create(&threads[i],NULL,FctThreadClient,NULL);
-
-
-    while(1){
-        char ipClient[50];
-        int sService = accepterClient(serveur, ipClient);
-        if (sService < 0) continue;
-
-        pthread_mutex_lock(&mutexSocketsAcceptees);
-        socketsAcceptees[indiceEcriture]=sService;
-        indiceEcriture=(indiceEcriture+1)%TAILLE_FILE_ATTENTE;
-        pthread_mutex_unlock(&mutexSocketsAcceptees);
-        pthread_cond_signal(&condSocketsAcceptees);
+    sigaction(SIGINT, &A, NULL);
+    
+    // --- Création des deux serveurs ---
+    int serveurReservation = creerServeur(PORT_RESERVATION);
+    int serveurAdmin = creerServeur(PORT_ADMIN);
+    
+    if (serveurReservation < 0) {
+        perror("Erreur creerServeur PORT_RESERVATION");
+        exit(1);
     }
+    if (serveurAdmin < 0) {
+        perror("Erreur creerServeur PORT_ADMIN");
+        close(serveurReservation);
+        exit(1);
+    }
+    
+    printf("[INFO] Serveurs créés : Réservation (port %d), Admin (port %d)\n", 
+           PORT_RESERVATION, PORT_ADMIN);
+    
+    // --- Création pool de threads pour réservations ---
+    pthread_t threads[NB_THREADS_POOL];
+    for (int i = 0; i < NB_THREADS_POOL; i++)
+        pthread_create(&threads[i], NULL, FctThreadClient, NULL);
+    
+    printf("[INFO] Pool de %d threads créé\n", NB_THREADS_POOL);
+    
+    // --- Boucle principale : écoute sur les deux ports ---
+    while(1){
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(serveurReservation, &readfds);
+        FD_SET(serveurAdmin, &readfds);
+        
+        int maxfd = (serveurReservation > serveurAdmin ? serveurReservation : serveurAdmin) + 1;
+        
+        int ret = select(maxfd, &readfds, NULL, NULL, NULL);
+        if(ret < 0){
+            // if(errno == EINTR) continue; // Interrompu par signal
+            perror("Erreur select");
+            continue;
+        }
+        
+        // --- Gestion connexions RESERVATION ---
+        if(FD_ISSET(serveurReservation, &readfds)){
+            char ipClient[50];
+            int sService = accepterClient(serveurReservation, ipClient);
+            
+            if(sService < 0){
+                perror("Erreur accept serveur réservation");
+            } else {
+                printf("[RESERVATION] Client accepté : socket=%d, IP=%s\n", sService, ipClient);
+                
+                pthread_mutex_lock(&mutexSocketsAcceptees);
+                socketsAcceptees[indiceEcriture] = sService;
+                indiceEcriture = (indiceEcriture + 1) % TAILLE_FILE_ATTENTE;
+                pthread_mutex_unlock(&mutexSocketsAcceptees);
+                
+                pthread_cond_signal(&condSocketsAcceptees);
+            }
+        }
+        
+        // --- Gestion connexions ADMIN (traitement direct) ---
+        if(FD_ISSET(serveurAdmin, &readfds)){
+            char ipClient[50];
+            int sService = accepterClient(serveurAdmin, ipClient);
+            
+            if(sService < 0){
+                perror("Erreur accept serveur admin");
+            } else {
+                printf("[ADMIN] Client accepté : socket=%d, IP=%s\n", sService, ipClient);
+                
+                char buffer[1024];
+                int n = recv(sService, buffer, sizeof(buffer) - 1, 0);
+                
+                if(n < 0){
+                    perror("Erreur recv admin");
+                    close(sService);
+                    continue;
+                } else if(n == 0){
+                    printf("[ADMIN] Client %s a fermé la connexion immédiatement\n", ipClient);
+                    close(sService);
+                    continue;
+                }
+                
+                buffer[n] = '\0';
+                printf("[ADMIN] Requête reçue de %s : %s\n", ipClient, buffer);
+                
+                // Traiter la requête admin
+                char reponse[1024];
+                sprintf(reponse, "OK Requête traitée : %s\n", buffer);
+                
+                if(send(sService, reponse, strlen(reponse), 0) < 0){
+                    perror("Erreur send admin");
+                } else {
+                    printf("[ADMIN] Réponse envoyée à %s\n", ipClient);
+                }
+                
+                close(sService);
+                printf("[ADMIN] Connexion fermée pour %s\n", ipClient);
+            }
+        }
+    }
+    
+    // Nettoyage (jamais atteint sauf SIGINT)
+    close(serveurReservation);
+    close(serveurAdmin);
+    
     return 0;
 }
 
@@ -138,8 +226,19 @@ void TraitementConnexion(int sService){
                 sprintf(requete, "LOGIN#existant#%s#%s#%d", patient.nom, patient.prenom, patient.numeroPatient);
             }
             reponseBool = SMOP(requete, reponse, sService);
-            envoyerMessage(sService,&reponseBool,sizeof(bool));
-            
+            envoyerMessage(sService, &reponseBool, sizeof(bool));
+
+            char *token = strtok(reponse, "#");
+
+            if(token != NULL && strcmp(token, "ok") == 0){
+                char *idpatientstr = strtok(NULL, "#");
+                if(idpatientstr != NULL) {
+                    int idpatient = atoi(idpatientstr);
+                    envoyerMessage(sService, &idpatient, sizeof(int));
+                } else {
+                    fprintf(stderr, "[ERREUR] ID patient manquant dans la réponse\n");
+                }
+            }       
             continue;
         }
         else if(type.type==3){

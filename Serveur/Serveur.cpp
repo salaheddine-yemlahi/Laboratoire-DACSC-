@@ -235,10 +235,11 @@ void TraitementConnexion(int sService){
                 if(idpatientstr != NULL) {
                     int idpatient = atoi(idpatientstr);
                     envoyerMessage(sService, &idpatient, sizeof(int));
+                    ajoute(sService, idpatient);
                 } else {
                     fprintf(stderr, "[ERREUR] ID patient manquant dans la réponse\n");
                 }
-            }       
+            }      
             continue;
         }
         else if(type.type==3){

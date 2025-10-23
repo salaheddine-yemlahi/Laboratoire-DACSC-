@@ -33,7 +33,13 @@ typedef struct {
     char raison_consultation[100];
 } BOOK_CONSULTATION;
 
+typedef struct{
+    int socket;
+    int id;
+} SOCKET_ID;
+
 bool SMOP(char* requete, char* reponse, int socket);
+void ajoute(int socket, int id);
 bool SMOP_Login(int id,const char* user, const char* password);
 int SMOP_Register(const char* user, const char* password);
 void SMOP_Close(); 

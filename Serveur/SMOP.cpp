@@ -11,10 +11,9 @@
 #include "SMOP.h"
 
 
-int clients[NB_MAX_CLIENTS]; 
+SOCKET_ID clients[NB_MAX_CLIENTS]; 
 int nbClients = 0;
 int  estPresent(int socket); 
-void ajoute(int socket); 
 void retire(int socket); 
 pthread_mutex_t mutexClients = PTHREAD_MUTEX_INITIALIZER; 
 
@@ -45,7 +44,6 @@ bool SMOP(char* requete, char* reponse, int socket)
             if (numeroPatient > 0)
             {
                 sprintf(reponse, "ok#%d", numeroPatient);
-                ajoute(socket);
                 return true;
             }
             else
@@ -66,7 +64,6 @@ bool SMOP(char* requete, char* reponse, int socket)
             if (SMOP_Login(numeroPatient, user, password)) // login réussi
             {
                 sprintf(reponse, "ok#%d", numeroPatient);
-                ajoute(socket);
                 return true;
             }
             else
@@ -491,37 +488,44 @@ int estPresent(int socket)
     int indice = -1; 
     pthread_mutex_lock(&mutexClients); 
     for(int i=0 ; i<nbClients ; i++) 
-    if (clients[i] == socket) { indice  = i; break; } 
+    if (clients[i].socket == socket) { indice  = i; break; } 
     pthread_mutex_unlock(&mutexClients); 
     return indice; 
 } 
 
 
-void ajoute(int socket) 
+void ajoute(int socket, int id) 
 { 
     pthread_mutex_lock(&mutexClients); 
-    clients[nbClients] = socket; 
+    clients[nbClients].socket = socket;
+    clients[nbClients].id = id;
+    printf("socket ajouté : %d, id: %d\n", clients[nbClients].socket, clients[nbClients].id);
     nbClients++;
-    pthread_mutex_unlock(&mutexClients); 
+    pthread_mutex_unlock(&mutexClients);
 } 
 
 
 void retire(int socket) 
-{ 
-    int pos = estPresent(socket); 
-    if (pos == -1) return; 
-    pthread_mutex_lock(&mutexClients); 
-    for (int i=pos ; i<=nbClients-2 ; i++) 
-    clients[i] = clients[i+1]; 
-    nbClients--; 
-    pthread_mutex_unlock(&mutexClients); 
+{
+    int pos = estPresent(socket);
+    if (pos == -1) return;
+    pthread_mutex_lock(&mutexClients);
+    for (int i=pos ; i<=nbClients-2 ; i++){
+        clients[i].socket = clients[i+1].socket;
+        clients[i].id = clients[i+1].id;
+        nbClients--;
+    }
+    printf("socket retiré : %d, id: %d\n");
+    pthread_mutex_unlock(&mutexClients);
 } 
 
 
 void SMOP_Close() 
 { 
     pthread_mutex_lock(&mutexClients); 
-    for (int i=0 ; i<nbClients ; i++) 
-    close(clients[i]); 
+    for (int i=0 ; i<nbClients ; i++){
+         close(clients[i].socket); 
+    }
     pthread_mutex_unlock(&mutexClients); 
 }
+

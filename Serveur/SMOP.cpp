@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <pthread.h>
 #include <stdbool.h>
+#include <sys/socket.h>
+#include <arpa/inet.h>
 #include <signal.h>
 #include <mysql/mysql.h>
 #include "SMOP.h"
@@ -93,6 +95,18 @@ bool SMOP(char* requete, char* reponse, int socket)
         for (int i = 0; i < nb; i++) {
             char ligne[64];
             sprintf(ligne, "#%d:%s#", tab[i].id_specialite, tab[i].nom_specialite);
+            strcat(reponse, ligne);
+        }
+        free(tab);
+        return true;
+    }
+    else if(strcmp(ptr, "LIST_CLIENTS") == 0){
+        int nb;
+        CLIENT* tab = CBP_GET_CLIENTS(&nb);
+        sprintf(reponse, "LIST_CLIENTS#%d", nb);
+        for (int i = 0; i < nb; i++) {
+            char ligne[64];
+            sprintf(ligne, "#%s:%s:%s:%d#", tab[i].adressIP, tab[i].nom, tab[i].prenom, tab[i].numeroPatient);
             strcat(reponse, ligne);
         }
         free(tab);
@@ -424,7 +438,6 @@ REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name,
     return tabConsultation;
 }
 
-
 bool SMOP_Book_Consultation(int id_consultation, int id_patient, char* raison){
     MYSQL* connexion = mysql_init(NULL);
     if (!connexion) return false;
@@ -529,3 +542,91 @@ void SMOP_Close()
     pthread_mutex_unlock(&mutexClients); 
 }
 
+
+CLIENT* CBP_GET_CLIENTS(int* nbResultats){
+    MYSQL* connexion = mysql_init(NULL);
+    if (!connexion) return NULL;
+
+    if (!mysql_real_connect(connexion, "localhost", "Student", "PassStudent1_", "PourStudent", 0, NULL, 0)) {
+        fprintf(stderr, "Erreur BD: %s\n", mysql_error(connexion));
+        mysql_close(connexion);
+        return NULL;
+    }
+    char requete[1024];
+    snprintf(requete, sizeof(requete), "SELECT id, last_name, first_name FROM patients WHERE id IN (");
+    pthread_mutex_lock(&mutexClients);
+    for (int i = 0; i < nbClients; i++) {
+        char buffer[32];
+        snprintf(buffer, sizeof(buffer), "%d", clients[i].id);
+        strncat(requete, buffer, sizeof(requete) - strlen(requete) - 1);
+
+        if (i < nbClients - 1) {
+            strncat(requete, ", ", sizeof(requete) - strlen(requete) - 1);
+        }
+    }
+    strncat(requete, ")", sizeof(requete) - strlen(requete) - 1);
+    printf("%s\n", requete);
+
+
+    if (mysql_query(connexion, requete) != 0) {
+        fprintf(stderr, "Erreur de mysql_query: %s\n", mysql_error(connexion));
+        mysql_close(connexion);
+        return NULL;
+    }
+
+    MYSQL_RES* ResultSet = mysql_store_result(connexion);
+    if (!ResultSet) {
+        fprintf(stderr, "Erreur de mysql_store_result: %s\n", mysql_error(connexion));
+        mysql_close(connexion);
+        return NULL;
+    }
+
+    *nbResultats = mysql_num_rows(ResultSet);
+    MYSQL_ROW ligne;
+
+    CLIENT* tabClients = (CLIENT*)malloc((*nbResultats) * sizeof(CLIENT));
+    if (!tabClients) {
+        fprintf(stderr, "Erreur d’allocation mémoire\n");
+        mysql_free_result(ResultSet);
+        mysql_close(connexion);
+        return NULL;
+    }
+
+    int i = 0;
+
+
+    while ((ligne = mysql_fetch_row(ResultSet)) != NULL && i < *nbResultats) {
+        int idPatient = atoi(ligne[0]);
+
+        tabClients[i].numeroPatient = idPatient;
+        strcpy(tabClients[i].nom, ligne[1]);
+        strcpy(tabClients[i].prenom, ligne[2]);
+
+        // 🔍 Recherche du bon client selon l'id
+        for (int j = 0; j < nbClients; j++) {
+            if (clients[j].id == idPatient) {
+                struct sockaddr_in addr;
+                socklen_t addr_len = sizeof(addr);
+
+                // 📡 Récupérer les infos du socket (adresse IP du client)
+                if (getpeername(clients[j].socket, (struct sockaddr*)&addr, &addr_len) == 0) {
+                    const char *ip = inet_ntoa(addr.sin_addr);
+                    strcpy(tabClients[i].adressIP, ip);
+                } else {
+                    strcpy(tabClients[i].adressIP, "Unknown");
+                }
+
+                break;
+            }
+        }
+
+        i++;
+    }
+    pthread_mutex_unlock(&mutexClients);
+
+    mysql_free_result(ResultSet);
+    mysql_close(connexion);
+
+    *nbResultats = i;
+    return tabClients;
+}

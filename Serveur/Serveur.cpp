@@ -8,6 +8,7 @@
 #include <mysql/mysql.h>
 #include "LibrairieServeur.h"
 #include "SMOP.h"
+#include "ACBP.h"
 
 #define TAILLE_FILE_ATTENTE 20
 
@@ -46,8 +47,9 @@ int PORT_ADMIN;
 void HandlerSIGINT(int s);
 void TraitementConnexion(int sService);
 void* FctThreadClient(void* p);
+void* FctThreadAdmin(void* arg);
 bool CBP_Login(const char* user, const char* password);
-
+char reponse[8192];
 int main() {
     // --- Lecture configuration ---
     FILE *file = fopen("config.conf", "r");
@@ -136,43 +138,19 @@ int main() {
         }
         
         // --- Gestion connexions ADMIN (traitement direct) ---
-        if(FD_ISSET(serveurAdmin, &readfds)){
+        if (FD_ISSET(serveurAdmin, &readfds)) {
             char ipClient[50];
             int sService = accepterClient(serveurAdmin, ipClient);
-            
-            if(sService < 0){
-                perror("Erreur accept serveur admin");
+            if (sService < 0) {
+                perror("Erreur accept serveurAdmin");
             } else {
-                printf("[ADMIN] Client accepté : socket=%d, IP=%s\n", sService, ipClient);
-                
-                char buffer[1024];
-                int n = recv(sService, buffer, sizeof(buffer) - 1, 0);
-                
-                if(n < 0){
-                    perror("Erreur recv admin");
-                    close(sService);
-                    continue;
-                } else if(n == 0){
-                    printf("[ADMIN] Client %s a fermé la connexion immédiatement\n", ipClient);
-                    close(sService);
-                    continue;
-                }
-                
-                buffer[n] = '\0';
-                printf("[ADMIN] Requête reçue de %s : %s\n", ipClient, buffer);
-                
-                // Traiter la requête admin
-                char reponse[1024];
-                sprintf(reponse, "OK Requête traitée : %s\n", buffer);
-                
-                if(send(sService, reponse, strlen(reponse), 0) < 0){
-                    perror("Erreur send admin");
-                } else {
-                    printf("[ADMIN] Réponse envoyée à %s\n", ipClient);
-                }
-                
-                close(sService);
-                printf("[ADMIN] Connexion fermée pour %s\n", ipClient);
+                printf("[DEBUG] serveurAdmin : client accepté, socket=%d, ip=%s\n", sService, ipClient);
+
+                pthread_t th;
+                int *pSock = (int*) malloc(sizeof(int));
+                *pSock = sService;
+                pthread_create(&th, NULL, FctThreadAdmin, pSock);
+                pthread_detach(th);
             }
         }
     }
@@ -209,7 +187,6 @@ void TraitementConnexion(int sService){
     bool onContinue=true;
     char requete[256];
     bool reponseBool;
-    char reponse[8192];
     while(onContinue){
         TYPE type;
         int lus = recevoirMessage(sService,&type,sizeof(TYPE));
@@ -386,4 +363,39 @@ void TraitementConnexion(int sService){
             free(buffer);
         }
     }
+}
+
+void* FctThreadAdmin(void* arg) {
+    int sService = *((int*)arg); // récupérer le socket passé en paramètre
+    bool repBool;
+
+    repBool = ACBP(reponse, sService); // utiliser le socket passé
+
+    char *ptr = strtok(reponse, "#");
+    if (strcmp(ptr, "LIST_CLIENTS") == 0)
+    {
+        char *nbStr = strtok(NULL, "#");
+        int nbResultats = atoi(nbStr); 
+        printf("Nombre de clients : %d\n", nbResultats);
+
+        envoyerMessage(sService, &nbResultats, sizeof(int));
+
+        CLIENT tabReponse;
+        char *token;
+        while ((token = strtok(NULL, "#")) != NULL)
+        {
+            sscanf(token, "%19[^:]:%19[^:]:%19[^:]:%d",
+                tabReponse.adressIP,
+                tabReponse.nom,
+                tabReponse.prenom,
+                &tabReponse.numeroPatient);
+
+            envoyerMessage(sService, &tabReponse, sizeof(CLIENT));
+        }
+    }
+    else
+    {
+        printf("Réponse inattendue : %s\n", ptr);
+    }
+    return NULL;
 }

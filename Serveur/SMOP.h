@@ -38,6 +38,13 @@ typedef struct{
     int id;
 } SOCKET_ID;
 
+typedef struct{
+    char adressIP[20];
+    char nom[20];
+    char prenom[20];
+    int numeroPatient;
+} CLIENT;
+
 bool SMOP(char* requete, char* reponse, int socket);
 void ajoute(int socket, int id);
 bool SMOP_Login(int id,const char* user, const char* password);
@@ -47,4 +54,5 @@ SPECIALITE* SMOP_SPECIALITES(int* nbResultats);
 REPONSE_RECHERCHE* SMOP_Consultation(int* nbResultats, int id, const char* name, const char* specialtie, const char* datedebut, const char* datefin);
 DOCTOR* SMOP_DOCTORS(int* nbResultats);
 bool SMOP_Book_Consultation(int id_consultation, int id_patient, char* raison);
+CLIENT* CBP_GET_CLIENTS(int* nbResultats);
 #endif
